@@ -6,7 +6,7 @@ services:
     region: singapore
     numInstances: 1
     autoDeployTrigger: "off"
-    buildCommand: npm ci && RASMALAI_AUDIT_BUILD=1 npm run build
+    buildCommand: npm ci --include=dev && RASMALAI_AUDIT_BUILD=1 npm run build
     startCommand: RASMALAI_AUDIT_BUILD=1 node deploy/render-free.mjs
     healthCheckPath: /health
     envVars:

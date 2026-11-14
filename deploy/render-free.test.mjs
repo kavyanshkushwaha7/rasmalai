@@ -14,6 +14,8 @@ test("Render Blueprint self-references the assigned HTTPS origin for build and r
   }
   assert.equal([...blueprint.matchAll(/^  - type: web$/gm)].length, 1);
   assert.match(blueprint, /    plan: free\n/);
+  assert.match(blueprint, /    buildCommand: npm ci --include=dev && RASMALAI_AUDIT_BUILD=1 npm run build\n/);
+  assert.match(blueprint, /      - key: NODE_ENV\n        value: production\n/);
   assert.match(blueprint, /      - key: GOOGLE_OAUTH_ENABLED\n        value: "false"/);
   assert.match(blueprint, /      - fromGroup: rasmalai-prod-ca\n/);
   assert.doesNotMatch(blueprint, /^envVarGroups:/m);
