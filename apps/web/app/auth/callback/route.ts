@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSafeAuthCallbackPath } from "@/lib/supabase/auth-callback-redirect";
-import { isAuthUserAllowed, readAuthBetaConfig } from "@rasmalai/database/auth-beta-policy";
+import { readAuthBetaConfig } from "@rasmalai/database/auth-beta-policy";
+import {
+  getAuthCallbackRejectionReason,
+  logAuthCallbackRejection,
+} from "@/lib/supabase/auth-callback-diagnostics";
 
 function redirectToSameOriginPath(path: string) {
   // A relative Location preserves the browser's public origin behind a proxy;
@@ -23,8 +27,15 @@ export async function GET(request: NextRequest) {
     if (!error) {
       const config = readAuthBetaConfig();
       if (config.mode !== "email-password") {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user || !isAuthUserAllowed(user, config)) {
+        let rejectionReason: ReturnType<typeof getAuthCallbackRejectionReason>;
+        try {
+          const { data: { user }, error } = await supabase.auth.getUser();
+          rejectionReason = getAuthCallbackRejectionReason(user, error, config);
+        } catch {
+          rejectionReason = "supabase_get_user_error";
+        }
+        if (rejectionReason) {
+          logAuthCallbackRejection(rejectionReason);
           await supabase.auth.signOut({ scope: "local" });
           return redirectToSameOriginPath("/login?auth=beta-access");
         }

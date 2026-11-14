@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getAuthUserRejectionReason,
   isAuthUserAllowed,
   isGoogleOAuthAvailable,
   isPasswordAuthAvailable,
@@ -42,6 +43,28 @@ test("invite allowlist is case-insensitive and accepts only a verified Google id
   assert.equal(isAuthUserAllowed({ ...googleUser, email_confirmed_at: null, confirmed_at: null }, config), false);
   assert.equal(isAuthUserAllowed({ ...googleUser, app_metadata: { provider: "email", providers: ["email"] } }, config), false);
   assert.equal(isAuthUserAllowed({ ...googleUser, app_metadata: { provider: "email" }, identities: [{ provider: "google" }] }, config), true);
+});
+
+test("invite policy reports distinct non-sensitive rejection reasons", () => {
+  const config = readAuthBetaConfig({
+    AUTH_BETA_MODE: "invite-only-google",
+    GOOGLE_OAUTH_ENABLED: "true",
+    BETA_ALLOWED_EMAILS: "player@example.com",
+  });
+
+  assert.equal(getAuthUserRejectionReason(googleUser, config), null);
+  assert.equal(getAuthUserRejectionReason({ email: "player@example.com" }, config), "email_not_verified");
+  assert.equal(getAuthUserRejectionReason({ ...googleUser, email: undefined }, config), "email_missing");
+  assert.equal(
+    getAuthUserRejectionReason({ ...googleUser, app_metadata: { provider: "email", providers: ["email"] } }, config),
+    "google_provider_identity_missing",
+  );
+  assert.equal(getAuthUserRejectionReason({ ...googleUser, email: "other@example.com" }, config), "email_not_in_beta_allowlist");
+  assert.equal(
+    getAuthUserRejectionReason(googleUser, readAuthBetaConfig({ AUTH_BETA_MODE: "invite-only-google", BETA_ALLOWED_EMAILS: "player@example.com" })),
+    "google_oauth_disabled",
+  );
+  assert.equal(getAuthUserRejectionReason(googleUser, readAuthBetaConfig({ AUTH_BETA_MODE: "disabled" })), "beta_policy_disabled");
 });
 
 test("unknown beta modes disable access rather than falling back to public signup", () => {

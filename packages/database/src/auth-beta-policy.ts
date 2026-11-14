@@ -14,6 +14,14 @@ export type VerifiedAuthUser = {
   identities?: Array<{ provider?: unknown }> | null;
 };
 
+export type AuthUserRejectionReason =
+  | "beta_policy_disabled"
+  | "google_oauth_disabled"
+  | "email_missing"
+  | "email_not_verified"
+  | "google_provider_identity_missing"
+  | "email_not_in_beta_allowlist";
+
 export function readAuthBetaConfig(environment: Record<string, string | undefined> = process.env): AuthBetaConfig {
   const rawMode = environment.AUTH_BETA_MODE?.trim();
   const mode: AuthBetaMode = rawMode === undefined || rawMode === "" || rawMode === "email-password"
@@ -51,10 +59,20 @@ function hasVerifiedGoogleIdentity(user: VerifiedAuthUser): boolean {
   return appProvider === "google" || providers.includes("google") || identities.some((identity) => identity.provider === "google");
 }
 
+export function getAuthUserRejectionReason(
+  user: VerifiedAuthUser,
+  config: AuthBetaConfig,
+): AuthUserRejectionReason | null {
+  if (config.mode === "email-password") return null;
+  if (config.mode !== "invite-only-google") return "beta_policy_disabled";
+  if (!config.googleOAuthEnabled) return "google_oauth_disabled";
+  if (typeof user.email !== "string") return "email_missing";
+  if (!user.email_confirmed_at && !user.confirmed_at) return "email_not_verified";
+  if (!hasVerifiedGoogleIdentity(user)) return "google_provider_identity_missing";
+  if (!config.allowedEmails.has(user.email.trim().toLowerCase())) return "email_not_in_beta_allowlist";
+  return null;
+}
+
 export function isAuthUserAllowed(user: VerifiedAuthUser, config: AuthBetaConfig): boolean {
-  if (config.mode === "email-password") return true;
-  if (config.mode !== "invite-only-google" || !isGoogleOAuthAvailable(config)) return false;
-  if (typeof user.email !== "string" || !user.email_confirmed_at && !user.confirmed_at) return false;
-  if (!hasVerifiedGoogleIdentity(user)) return false;
-  return config.allowedEmails.has(user.email.trim().toLowerCase());
+  return getAuthUserRejectionReason(user, config) === null;
 }
