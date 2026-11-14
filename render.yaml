@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: rasmalai-free-beta
+    runtime: node
+    plan: free
+    region: singapore
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: npm ci && RASMALAI_AUDIT_BUILD=1 npm run build
+    startCommand: RASMALAI_AUDIT_BUILD=1 node deploy/render-free.mjs
+    healthCheckPath: /health
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22.22.0"
+      - key: RASMALAI_AUDIT_BUILD
+        value: "1"
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REALTIME_ALLOWED_ORIGIN
+        sync: false
+      - key: NEXT_PUBLIC_REALTIME_URL
+        value: ""
+      - key: SPECTATOR_MODE_ENABLED
+        value: "false"
+      - key: RENDER_WEB_INTERNAL_PORT
+        value: "13000"
+      - key: RENDER_REALTIME_INTERNAL_PORT
+        value: "14100"

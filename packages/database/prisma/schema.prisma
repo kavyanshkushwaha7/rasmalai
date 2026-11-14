@@ -1,0 +1,536 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum MessageRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+
+enum ConversationKind {
+  DIRECT
+  PLAYER_CHAT
+  SPECTATOR_CHAT
+}
+
+enum GameType {
+  LUDO
+  TIC_TAC_TOE
+  SNAKES_AND_LADDERS
+}
+
+enum RoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum RoomStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MatchStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum RematchStatus {
+  PENDING
+  DECLINED
+  STARTED
+}
+
+enum GameInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  MESSAGE_REQUEST
+  MESSAGE_REQUEST_ACCEPTED
+  NEW_MESSAGE
+  GAME_INVITE
+  MATCH_RESULT
+  ACCOUNT_ACTIVITY
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+model Profile {
+  id             String   @id @db.Uuid // UUID from Supabase Auth; credentials stay in auth.users.
+  username       String   @unique @db.VarChar(24)
+  nickname       String   @db.VarChar(40)
+  avatarUrl      String?  @map("avatar_url") @db.Text
+  avatarPath     String?  @map("avatar_path") @db.Text
+  joinedAt       DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
+  gamesPlayed    Int      @default(0) @map("games_played")
+  wins           Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  sentFriendRequests     FriendRequest[]      @relation("FriendRequestSender")
+  receivedFriendRequests FriendRequest[]      @relation("FriendRequestRecipient")
+  friendshipsA           Friendship[]         @relation("FriendshipA")
+  friendshipsB           Friendship[]         @relation("FriendshipB")
+  blocksMade             UserBlock[]           @relation("Blocker")
+  blocksReceived         UserBlock[]           @relation("Blocked")
+  conversationMemberships ConversationMember[]
+  messages               Message[]
+  sentMessageRequests    MessageRequest[]      @relation("MessageRequestSender")
+  receivedMessageRequests MessageRequest[]     @relation("MessageRequestRecipient")
+  createdRooms           GameRoom[]            @relation("RoomCreator")
+  rematchRequests       RematchRequest[]      @relation("RematchRequester")
+  rematchVotes          RematchVote[]
+  roomSeats              RoomPlayer[]
+  spectatorMemberships   Spectator[]
+  sentSpectatorInvites   SpectatorInvite[]     @relation("SpectatorInviteSender")
+  receivedSpectatorInvites SpectatorInvite[]   @relation("SpectatorInviteRecipient")
+  spectatorChatMessages  SpectatorChatMessage[]
+  spectatorChatReactions SpectatorChatReaction[]
+  gameMoves              GameMove[]
+  matchSeats             MatchPlayer[]
+  matchWins              Match[]              @relation("MatchWinner")
+  sentInvites            GameInvite[]          @relation("InviteSender")
+  receivedInvites        GameInvite[]          @relation("InviteRecipient")
+  notifications          Notification[]        @relation("NotificationRecipient")
+  notificationsCaused    Notification[]        @relation("NotificationActor")
+  reportsFiled           UserReport[]           @relation("ReportAuthor")
+  reportsReceived        UserReport[]           @relation("ReportTarget")
+  gameChatMessages       GameChatMessage[]
+  gameChatReactions      GameChatReaction[]
+  rateLimitBuckets       RateLimitBucket[]
+
+  @@map("profiles")
+}
+
+model FriendRequest {
+  id          String             @id @default(uuid()) @db.Uuid
+  senderId    String             @map("sender_id") @db.Uuid
+  recipientId String             @map("recipient_id") @db.Uuid
+  status      FriendRequestStatus @default(PENDING)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sender      Profile            @relation("FriendRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   Profile            @relation("FriendRequestRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, recipientId])
+  @@index([recipientId, status, createdAt])
+  @@index([senderId, status, createdAt])
+  @@map("friend_requests")
+}
+
+model Friendship {
+  id          String   @id @default(uuid()) @db.Uuid
+  profileAId  String   @map("profile_a_id") @db.Uuid
+  profileBId  String   @map("profile_b_id") @db.Uuid
+  acceptedAt  DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  profileA    Profile  @relation("FriendshipA", fields: [profileAId], references: [id], onDelete: Cascade)
+  profileB    Profile  @relation("FriendshipB", fields: [profileBId], references: [id], onDelete: Cascade)
+
+  @@unique([profileAId, profileBId])
+  @@index([profileBId])
+  @@map("friendships")
+}
+
+model UserBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  blocker   Profile  @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   Profile  @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model MessageRequest {
+  id             String              @id @default(uuid()) @db.Uuid
+  senderId       String              @map("sender_id") @db.Uuid
+  recipientId    String              @map("recipient_id") @db.Uuid
+  initialMessage String              @map("initial_message") @db.VarChar(1000)
+  status         MessageRequestStatus @default(PENDING)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sender         Profile             @relation("MessageRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient      Profile             @relation("MessageRequestRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, recipientId])
+  @@index([recipientId, status, createdAt])
+  @@map("message_requests")
+}
+
+model Conversation {
+  id        String              @id @default(uuid()) @db.Uuid
+  kind      ConversationKind    @default(DIRECT)
+  directKey String?             @unique @map("direct_key") @db.Text
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  members   ConversationMember[]
+  messages  Message[]
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  profileId      String       @map("profile_id") @db.Uuid
+  lastReadAt     DateTime?    @map("last_read_at") @db.Timestamptz(6)
+  joinedAt       DateTime     @default(now()) @map("joined_at") @db.Timestamptz(6)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  profile        Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, profileId])
+  @@index([profileId, lastReadAt])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String         @id @default(uuid()) @db.Uuid
+  conversationId String         @map("conversation_id") @db.Uuid
+  authorId       String         @map("author_id") @db.Uuid
+  body           String         @db.VarChar(4000)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  editedAt       DateTime?      @map("edited_at") @db.Timestamptz(6)
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author         Profile        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("messages")
+}
+
+model GameRoom {
+  id              String        @id @default(uuid()) @db.Uuid
+  roomCode        String        @unique @map("room_code") @db.VarChar(12)
+  gameType        GameType      @map("game_type")
+  visibility      RoomVisibility @default(PRIVATE)
+  status          RoomStatus    @default(WAITING)
+  creatorId       String        @map("creator_id") @db.Uuid
+  maxPlayers      Int           @map("max_players")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  startedAt       DateTime?     @map("started_at") @db.Timestamptz(6)
+  completedAt     DateTime?     @map("completed_at") @db.Timestamptz(6)
+  creator         Profile       @relation("RoomCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  players         RoomPlayer[]
+  spectators      Spectator[]
+  state           GameState?
+  matches         Match[]
+  rematchRequests RematchRequest[]
+  invites         GameInvite[]
+  spectatorInvites SpectatorInvite[]
+  moves           GameMove[]
+  chatMessages    GameChatMessage[]
+  chatReactions   GameChatReaction[]
+  spectatorMessages SpectatorChatMessage[]
+  spectatorReactions SpectatorChatReaction[]
+  reports         UserReport[]
+
+  @@index([visibility, status, createdAt])
+  @@index([creatorId, createdAt])
+  @@map("game_rooms")
+}
+
+model RoomPlayer {
+  id        String   @id @default(uuid()) @db.Uuid
+  roomId    String   @map("room_id") @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  seatIndex Int      @map("seat_index")
+  joinedAt  DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  disconnectedAt DateTime? @map("disconnected_at") @db.Timestamptz(6)
+  room      GameRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, profileId])
+  @@unique([roomId, seatIndex])
+  @@index([profileId, joinedAt])
+  @@map("room_players")
+}
+
+model Spectator {
+  id             String    @id @default(uuid()) @db.Uuid
+  roomId         String    @map("room_id") @db.Uuid
+  profileId      String    @map("profile_id") @db.Uuid
+  joinedAt       DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
+  lastSeenAt     DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  disconnectedAt DateTime? @map("disconnected_at") @db.Timestamptz(6)
+  leftAt         DateTime? @map("left_at") @db.Timestamptz(6)
+  room           GameRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  profile        Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, profileId])
+  @@index([profileId, joinedAt])
+  @@map("spectators")
+}
+
+model GameState {
+  roomId    String   @id @map("room_id") @db.Uuid
+  version   Int      @default(0)
+  state     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  room      GameRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("game_states")
+}
+
+model Match {
+  id          String        @id @default(uuid()) @db.Uuid
+  roomId      String        @map("room_id") @db.Uuid
+  gameType    GameType      @map("game_type")
+  status      MatchStatus   @default(IN_PROGRESS)
+  startingSeat Int          @default(0) @map("starting_seat")
+  winnerId    String?       @map("winner_id") @db.Uuid
+  finalState  Json?          @map("final_state")
+  startedAt   DateTime      @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime?     @map("completed_at") @db.Timestamptz(6)
+  room        GameRoom      @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  winner      Profile?      @relation("MatchWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  players     MatchPlayer[]
+  moves       GameMove[]
+  rematches   RematchRequest[] @relation("RematchPreviousMatch")
+
+  @@index([status, startedAt])
+  @@index([roomId, startedAt])
+  @@index([winnerId, completedAt])
+  @@map("matches")
+}
+
+model RematchRequest {
+  id              String        @id @default(uuid()) @db.Uuid
+  roomId          String        @map("room_id") @db.Uuid
+  previousMatchId String        @map("previous_match_id") @db.Uuid
+  requesterId     String        @map("requester_id") @db.Uuid
+  generation      Int           @default(1)
+  status          RematchStatus @default(PENDING)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+  room            GameRoom      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  previousMatch   Match         @relation("RematchPreviousMatch", fields: [previousMatchId], references: [id], onDelete: Restrict)
+  requester       Profile       @relation("RematchRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  votes           RematchVote[]
+
+  @@index([previousMatchId, status, createdAt])
+  @@index([roomId, createdAt])
+  @@map("rematch_requests")
+}
+
+model RematchVote {
+  requestId  String         @map("request_id") @db.Uuid
+  generation Int
+  profileId  String         @map("profile_id") @db.Uuid
+  accepted   Boolean
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  request    RematchRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  profile    Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, generation, profileId])
+  @@index([profileId, createdAt])
+  @@map("rematch_votes")
+}
+
+model MatchPlayer {
+  id        String   @id @default(uuid()) @db.Uuid
+  matchId   String   @map("match_id") @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  seatIndex Int      @map("seat_index")
+  didWin    Boolean  @default(false) @map("did_win")
+  score     Int      @default(0)
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, profileId])
+  @@unique([matchId, seatIndex])
+  @@index([profileId, matchId])
+  @@map("match_players")
+}
+
+model GameMove {
+  id             String   @id @default(uuid()) @db.Uuid
+  roomId         String   @map("room_id") @db.Uuid
+  matchId        String   @map("match_id") @db.Uuid
+  actorId        String?  @map("actor_id") @db.Uuid
+  sequence       Int
+  idempotencyKey String   @unique @map("idempotency_key") @db.VarChar(100)
+  action         Json
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  room           GameRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  match          Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  actor          Profile? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@unique([matchId, sequence])
+  @@index([roomId, createdAt])
+  @@map("game_moves")
+}
+
+model GameChatMessage {
+  id        String             @id @default(uuid()) @db.Uuid
+  roomId    String             @map("room_id") @db.Uuid
+  authorId  String             @map("author_id") @db.Uuid
+  body      String             @db.VarChar(500)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  room      GameRoom           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author    Profile            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions GameChatReaction[]
+
+  @@index([roomId, createdAt])
+  @@map("game_chat_messages")
+}
+
+model GameChatReaction {
+  id        String          @id @default(uuid()) @db.Uuid
+  messageId String          @map("message_id") @db.Uuid
+  roomId    String          @map("room_id") @db.Uuid
+  profileId String          @map("profile_id") @db.Uuid
+  emoji     String          @db.VarChar(16)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  message   GameChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  room      GameRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  profile   Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, profileId, emoji])
+  @@index([roomId, messageId])
+  @@map("game_chat_reactions")
+}
+
+model GameInvite {
+  id          String           @id @default(uuid()) @db.Uuid
+  roomId      String           @map("room_id") @db.Uuid
+  senderId    String           @map("sender_id") @db.Uuid
+  recipientId String           @map("recipient_id") @db.Uuid
+  status      GameInviteStatus @default(PENDING)
+  expiresAt   DateTime         @map("expires_at") @db.Timestamptz(6)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  room        GameRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender      Profile          @relation("InviteSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   Profile          @relation("InviteRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, status, createdAt])
+  @@index([roomId, status])
+  @@map("game_invites")
+}
+
+model SpectatorInvite {
+  id          String           @id @default(uuid()) @db.Uuid
+  roomId      String           @map("room_id") @db.Uuid
+  senderId    String           @map("sender_id") @db.Uuid
+  recipientId String           @map("recipient_id") @db.Uuid
+  status      GameInviteStatus @default(PENDING)
+  expiresAt   DateTime         @map("expires_at") @db.Timestamptz(6)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  room        GameRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender      Profile          @relation("SpectatorInviteSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   Profile          @relation("SpectatorInviteRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, recipientId])
+  @@index([recipientId, status, createdAt])
+  @@index([roomId, status])
+  @@map("spectator_invites")
+}
+
+model SpectatorChatMessage {
+  id        String                   @id @default(uuid()) @db.Uuid
+  roomId    String                   @map("room_id") @db.Uuid
+  authorId  String                   @map("author_id") @db.Uuid
+  body      String                   @db.VarChar(500)
+  createdAt DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  room      GameRoom                 @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author    Profile                  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions SpectatorChatReaction[]
+
+  @@index([roomId, createdAt])
+  @@map("spectator_chat_messages")
+}
+
+model SpectatorChatReaction {
+  id        String              @id @default(uuid()) @db.Uuid
+  messageId String              @map("message_id") @db.Uuid
+  roomId    String              @map("room_id") @db.Uuid
+  profileId String              @map("profile_id") @db.Uuid
+  emoji     String              @db.VarChar(16)
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  message   SpectatorChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  room      GameRoom             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  profile   Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, profileId, emoji])
+  @@index([roomId, messageId])
+  @@map("spectator_chat_reactions")
+}
+
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  recipientId String           @map("recipient_id") @db.Uuid
+  actorId     String?          @map("actor_id") @db.Uuid
+  type        NotificationType
+  payload     Json             @default("{}")
+  readAt      DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  recipient   Profile          @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor       Profile?         @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, readAt, createdAt])
+  @@map("notifications")
+}
+
+model UserReport {
+  id          String       @id @default(uuid()) @db.Uuid
+  reporterId  String       @map("reporter_id") @db.Uuid
+  targetId    String       @map("target_id") @db.Uuid
+  roomId      String?      @map("room_id") @db.Uuid
+  reason      String       @db.VarChar(1000)
+  status      ReportStatus @default(OPEN)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  reviewedAt  DateTime?    @map("reviewed_at") @db.Timestamptz(6)
+  reporter    Profile      @relation("ReportAuthor", fields: [reporterId], references: [id], onDelete: Restrict)
+  target      Profile      @relation("ReportTarget", fields: [targetId], references: [id], onDelete: Restrict)
+  room        GameRoom?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([targetId, createdAt])
+  @@map("user_reports")
+}
+
+model RateLimitBucket {
+  userId          String   @map("user_id") @db.Uuid
+  actionKey       String   @map("action_key") @db.VarChar(40)
+  windowStartedAt DateTime @map("window_started_at") @db.Timestamptz(6)
+  requestCount    Int      @map("request_count")
+  profile         Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, actionKey])
+  @@map("rasmalai_rate_limit_buckets")
+}

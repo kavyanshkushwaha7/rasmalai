@@ -1,0 +1,13 @@
+{
+  "name": "@rasmalai/game-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./ludo": "./src/ludo.ts",
+    "./tic-tac-toe": "./src/tic-tac-toe.ts",
+    "./snakes-and-ladders": "./src/snakes-and-ladders.ts",
+    "./online": "./src/online.ts",
+    "./feature-flags": "./src/feature-flags.ts"
+  }
+}

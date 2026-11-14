@@ -1,0 +1,26 @@
+{
+  "name": "rasmalai",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "postinstall": "npm run db:generate",
+    "dev": "npm run dev --workspace @rasmalai/web",
+    "dev:web": "npm run dev --workspace @rasmalai/web",
+    "dev:realtime": "npm run dev --workspace @rasmalai/realtime",
+    "build": "npm run build --workspace @rasmalai/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && node --test deploy/render-free.test.mjs",
+    "db:generate": "npm run generate --workspace @rasmalai/database",
+    "db:validate": "npm run validate --workspace @rasmalai/database",
+    "db:deploy": "npm run migrate:deploy --workspace @rasmalai/database"
+  },
+  "allowScripts": {
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true,
+    "esbuild@0.28.2": true
+  }
+}

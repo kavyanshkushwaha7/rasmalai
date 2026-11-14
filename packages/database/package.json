@@ -1,0 +1,31 @@
+{
+  "name": "@rasmalai/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "validate": "prisma validate",
+    "typecheck": "tsc --noEmit",
+    "test": "node --conditions=react-server --import tsx --test test/*.test.ts",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "pg": "^8.16.3",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.4.3",
+    "@types/node": "^24.10.0",
+    "@types/pg": "^8.15.5",
+    "dotenv": "^17.2.3",
+    "prisma": "7.10.1",
+    "typescript": "^5.9.3"
+  }
+}

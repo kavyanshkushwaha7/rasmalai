@@ -1,0 +1,26 @@
+{
+  "name": "@rasmalai/realtime",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --conditions=react-server --import tsx --watch src/index.ts",
+    "start": "node --conditions=react-server --import tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --conditions=react-server --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@rasmalai/database": "*",
+    "@rasmalai/game-engine": "*",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "5.3.0",
+    "socket.io": "4.8.1",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3"
+  }
+}

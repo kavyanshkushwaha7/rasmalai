@@ -1,0 +1,9 @@
+{$PUBLIC_DOMAIN} {
+	@realtime path /socket.io/* /health
+	handle @realtime {
+		reverse_proxy realtime:4100
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}
