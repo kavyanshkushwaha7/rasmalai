@@ -529,6 +529,35 @@ button:disabled { cursor: not-allowed; }
 .site-footer > span.footer-creator { color: #a7e4bd; font-size: 10px; }
 .site-footer > span.footer-ghost { display: block; color: #f4d47d; font-size: 21px; line-height: 1; filter: drop-shadow(0 3px 9px rgba(244,212,125,.24)); animation: rasmalai-ghost-float 3.6s ease-in-out infinite; }
 .site-footer > span.footer-copyright { color: rgba(226,237,231,.54); font-size: 9px; }
+.site-footer > .footer-privacy-link { color: #a9eed8; font-size: 10px; text-decoration: underline; text-decoration-color: rgba(169,238,216,.38); text-underline-offset: 3px; }
+.site-footer > .footer-privacy-link:hover, .site-footer > .footer-privacy-link:focus-visible { color: #fff; text-decoration-color: currentColor; }
+/* Public privacy policy */
+.privacy-page { min-height: 100vh; padding: 0 0 48px; color: #eaf3ed; background: radial-gradient(ellipse at 50% 0%, rgba(34,119,89,.25), transparent 42%), linear-gradient(180deg,#071715,#0a1117 58%,#10121b); }
+.privacy-header { width: min(1080px, calc(100% - 40px)); min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 auto; border-bottom: 1px solid rgba(218,239,225,.12); }
+.privacy-header .brand-mark { background: #f8f7f2; }
+.privacy-header .brand-mark span:nth-child(4) { background: var(--jungle); }
+.privacy-home-link { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; border: 1px solid rgba(220,239,225,.16); border-radius: 999px; color: #c9ddd0; font-size: 11px; font-weight: 700; }
+.privacy-home-link:hover, .privacy-home-link:focus-visible { color: #fff; border-color: rgba(169,238,216,.48); }
+.privacy-document { width: min(820px, calc(100% - 36px)); margin: 0 auto; padding: 40px 0 0; }
+.privacy-title-block { margin: 0 0 22px; }
+.privacy-eyebrow { display: inline-flex; align-items: center; gap: 7px; color: #9be0c1; font-size: 9px; font-weight: 850; letter-spacing: .15em; }
+.privacy-title-block h1 { margin: 12px 0 7px; color: #fbfff8; font-size: clamp(36px, 7vw, 54px); letter-spacing: -.065em; line-height: 1.02; }
+.privacy-updated { margin: 0; color: #96aaa0; font-size: 11px; }
+.privacy-intro { max-width: 670px; margin: 18px 0 0; color: #c1d0c8; font-size: 14px; line-height: 1.75; }
+.privacy-review-note { margin: 23px 0 27px; padding: 17px 19px; border: 1px solid rgba(244,197,66,.28); border-radius: 14px; background: linear-gradient(130deg,rgba(100,73,15,.24),rgba(20,28,27,.72)); }
+.privacy-review-note h2 { margin: 0 0 7px; color: #ffe39b; font-size: 14px; letter-spacing: -.02em; }
+.privacy-review-note p { margin: 0; color: #e0d8be; font-size: 12px; line-height: 1.7; }
+.privacy-sections { border-top: 1px solid rgba(220,239,225,.13); }
+.privacy-section { padding: 21px 0; border-bottom: 1px solid rgba(220,239,225,.11); }
+.privacy-section h2 { margin: 0 0 9px; color: #e5ffef; font-size: 17px; letter-spacing: -.035em; }
+.privacy-section p, .privacy-section li { color: #bdcbc3; font-size: 12px; line-height: 1.8; }
+.privacy-section p { margin: 8px 0 0; }
+.privacy-section ul { display: grid; gap: 6px; margin: 10px 0 0; padding-left: 19px; }
+.privacy-section li::marker { color: #81d4ad; }
+.privacy-section code { color: #bdf3d4; font-size: .95em; }
+.privacy-footnote { margin: 19px 0 0; color: #84948d; font-size: 10px; line-height: 1.6; }
+@media (max-width: 520px) { .privacy-header { width: calc(100% - 28px); min-height: 65px; }.privacy-header .brand-name { font-size: 18px; }.privacy-header .brand-mark { width: 29px; height: 29px; }.privacy-document { width: calc(100% - 32px); padding-top: 29px; }.privacy-intro { font-size: 13px; }.privacy-review-note { padding: 14px; }.privacy-section { padding: 18px 0; }.privacy-section h2 { font-size: 15px; }.privacy-section p, .privacy-section li { font-size: 11px; } }
+@media (prefers-reduced-motion: reduce) { .privacy-page *, .privacy-page *::before, .privacy-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 @keyframes rasmalai-ghost-float { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(4deg); } }
 @media (prefers-reduced-motion: reduce) { .site-footer > span.footer-ghost { animation: none; } }
 

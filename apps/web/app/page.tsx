@@ -58,6 +58,7 @@ export default function HomePage() {
       <span className="footer-creator">Made with ❤️ by Kavyansh</span>
       <span className="footer-ghost" role="img" aria-label="Ghost">👻</span>
       <span className="footer-copyright">© 2026 Rasmalai</span>
+      <Link className="footer-privacy-link" href="/privacy">Privacy Policy</Link>
     </footer>
   </main>;
 }
