@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { readVerifiedAuthContext } from "./auth-session-policy";
 import { getSupabaseCookieOptions } from "./cookie-options";
+import { isAuthUserAllowed, readAuthBetaConfig } from "@rasmalai/database/auth-beta-policy";
 
 export const isSupabaseConfigured = () =>
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
@@ -49,5 +50,6 @@ export async function getAuthenticatedUserContext() {
     },
   );
   if (!identity) return null;
+  if (!isAuthUserAllowed(identity.user, readAuthBetaConfig())) return null;
   return { supabase, ...identity };
 }

@@ -159,6 +159,16 @@ export function validateRenderEnvironment(environment = process.env, caFileExist
   if ((environment.SPECTATOR_MODE_ENABLED ?? "false").toLowerCase() !== "false") {
     throw new Error("SPECTATOR_MODE_ENABLED must remain false for this launch configuration.");
   }
+  if (requiredFrom(environment, "AUTH_BETA_MODE") !== "invite-only-google") {
+    throw new Error("AUTH_BETA_MODE must remain invite-only-google for the controlled beta.");
+  }
+  const googleOAuthEnabled = requiredFrom(environment, "GOOGLE_OAUTH_ENABLED").toLowerCase();
+  if (googleOAuthEnabled !== "true" && googleOAuthEnabled !== "false") {
+    throw new Error("GOOGLE_OAUTH_ENABLED must be true or false.");
+  }
+  if (googleOAuthEnabled === "true" && !requiredFrom(environment, "BETA_ALLOWED_EMAILS")) {
+    throw new Error("BETA_ALLOWED_EMAILS must contain at least one invited email before Google sign-in is enabled.");
+  }
 
   const supabaseUrl = new URL(requiredFrom(environment, "NEXT_PUBLIC_SUPABASE_URL"));
   if (supabaseUrl.protocol !== "https:") throw new Error("NEXT_PUBLIC_SUPABASE_URL must use HTTPS in production.");

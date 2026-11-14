@@ -21,8 +21,10 @@ loadEnv({ path: webEnvPath });
 // dotenv normally preserves an earlier value from apps/realtime/.env or the
 // shell, which could otherwise leave the two local services in different modes.
 if (process.env.NODE_ENV !== "production" && existsSync(webEnvPath)) {
-  const sharedFlag = parseEnv(readFileSync(webEnvPath, "utf8")).SPECTATOR_MODE_ENABLED;
-  if (sharedFlag !== undefined) process.env.SPECTATOR_MODE_ENABLED = sharedFlag;
+  const sharedEnvironment = parseEnv(readFileSync(webEnvPath, "utf8"));
+  for (const name of ["SPECTATOR_MODE_ENABLED", "AUTH_BETA_MODE", "GOOGLE_OAUTH_ENABLED", "BETA_ALLOWED_EMAILS"]) {
+    if (sharedEnvironment[name] !== undefined) process.env[name] = sharedEnvironment[name];
+  }
 }
 
 process.env.SUPABASE_URL ??= process.env.NEXT_PUBLIC_SUPABASE_URL;

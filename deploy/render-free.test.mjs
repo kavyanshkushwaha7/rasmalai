@@ -153,6 +153,9 @@ function validRenderEnvironment(overrides = {}) {
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "publishable-test-value",
     SUPABASE_SECRET_KEY: "server-only-test-value",
     SPECTATOR_MODE_ENABLED: "false",
+    AUTH_BETA_MODE: "invite-only-google",
+    GOOGLE_OAUTH_ENABLED: "false",
+    BETA_ALLOWED_EMAILS: "",
     DATABASE_URL: "postgresql://prisma.projectref:test@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=verify-full&sslrootcert=%2Fetc%2Fsecrets%2Fca.crt",
     ...overrides,
   };
@@ -163,6 +166,9 @@ test("Render runtime accepts only same-origin HTTPS, disabled spectators, verifi
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ REALTIME_ALLOWED_ORIGIN: "https://other.invalid" }), () => true), /must exactly match/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ NEXT_PUBLIC_SITE_URL: "http://rasmalai-render-test.invalid" }), () => true), /exact HTTPS origin/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ SPECTATOR_MODE_ENABLED: "true" }), () => true), /must remain false/);
+  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ AUTH_BETA_MODE: "email-password" }), () => true), /invite-only-google/);
+  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ GOOGLE_OAUTH_ENABLED: "true" }), () => true), /BETA_ALLOWED_EMAILS/);
+  assert.doesNotThrow(() => validateRenderEnvironment(validRenderEnvironment({ GOOGLE_OAUTH_ENABLED: "true", BETA_ALLOWED_EMAILS: "player@example.com" }), () => true));
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ NEXT_PUBLIC_REALTIME_URL: "https://other.invalid" }), () => true), /must be empty/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DIRECT_URL: "postgresql://admin:secret@db.invalid/postgres" }), () => true), /migration-only/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DATABASE_URL: "postgresql://postgres:secret@db.project.supabase.co:5432/postgres?sslmode=verify-full&sslrootcert=%2Fetc%2Fsecrets%2Fca.crt" }), () => true), /restricted prisma Transaction Pooler/);

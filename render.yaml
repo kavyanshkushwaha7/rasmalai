@@ -33,6 +33,12 @@ services:
         value: ""
       - key: SPECTATOR_MODE_ENABLED
         value: "false"
+      - key: AUTH_BETA_MODE
+        value: invite-only-google
+      - key: GOOGLE_OAUTH_ENABLED
+        value: "false"
+      - key: BETA_ALLOWED_EMAILS
+        sync: false
       - key: RENDER_WEB_INTERNAL_PORT
         value: "13000"
       - key: RENDER_REALTIME_INTERNAL_PORT

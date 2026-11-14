@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./auth-beta-policy": "./src/auth-beta-policy.ts"
   },
   "scripts": {
     "generate": "prisma generate",

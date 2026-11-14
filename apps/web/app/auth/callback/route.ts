@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSafeAuthCallbackPath } from "@/lib/supabase/auth-callback-redirect";
+import { isAuthUserAllowed, readAuthBetaConfig } from "@rasmalai/database/auth-beta-policy";
 
 function redirectToSameOriginPath(path: string) {
   // A relative Location preserves the browser's public origin behind a proxy;
@@ -19,7 +20,17 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return redirectToSameOriginPath(safePath);
+    if (!error) {
+      const config = readAuthBetaConfig();
+      if (config.mode !== "email-password") {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user || !isAuthUserAllowed(user, config)) {
+          await supabase.auth.signOut({ scope: "local" });
+          return redirectToSameOriginPath("/login?auth=beta-access");
+        }
+      }
+      return redirectToSameOriginPath(safePath);
+    }
   }
 
   return redirectToSameOriginPath("/login?auth=link-expired");

@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useActionState } from "react";
 import { ArrowRight, LoaderCircle, Mail, Smartphone } from "lucide-react";
-import { requestPasswordReset, signInEmail, signUpEmail, updatePassword, type ActionState } from "@/app/actions/auth";
+import { requestPasswordReset, signInEmail, signUpEmail, startGoogleSignIn, updatePassword, type ActionState } from "@/app/actions/auth";
 
 function SubmitButton({ pending, children }: { pending: boolean; children: ReactNode }) {
   return <button className="button button--primary auth-submit" type="submit" disabled={pending}>{pending ? <LoaderCircle className="spin" size={17} /> : children}</button>;
@@ -37,11 +37,48 @@ function EmailForm({ mode }: { mode: "signup" | "login" }) {
   </form>;
 }
 
-export function AuthForm({ mode }: { mode: "signup" | "login" }) {
-  return <>
+function GoogleSignInButton({ enabled }: { enabled: boolean }) {
+  const [state, formAction, pending] = useActionState(startGoogleSignIn, {} as ActionState);
+  return <div className="google-auth-wrap">
+    <form action={formAction}>
+      <button className="google-auth-button" type="submit" disabled={!enabled || pending}>
+        {pending ? <LoaderCircle className="spin" size={17} /> : <span className="google-auth-mark" aria-hidden="true">G</span>}
+        Continue with Google
+      </button>
+    </form>
+    {!enabled && <p className="auth-config-note">Google sign-in setup is pending. This button will activate after the beta administrator configures it.</p>}
+    <Feedback state={state} />
+  </div>;
+}
+
+export function AuthMethods({ mode, betaMode, googleEnabled }: {
+  mode: "signup" | "login";
+  betaMode: "email-password" | "invite-only-google" | "disabled";
+  googleEnabled: boolean;
+}) {
+  if (betaMode === "invite-only-google") return <div className="auth-methods auth-methods--beta">
+    <GoogleSignInButton enabled={googleEnabled} />
+    <p className="auth-beta-note">RASMALAI is in a limited beta. Use an invited, allowlisted Google account. New players can set up a profile after signing in.</p>
+  </div>;
+  if (betaMode === "disabled") return <p className="auth-config-note" role="status">Sign-in is temporarily unavailable while access is configured.</p>;
+
+  return <div className="auth-methods">
+    <GoogleSignInButton enabled={googleEnabled} />
+    <div className="auth-divider"><span>OR USE EMAIL</span></div>
     <MethodSwitch />
     <EmailForm mode={mode} />
-  </>;
+  </div>;
+}
+
+export function BetaAuthNotice({ googleEnabled }: { googleEnabled: boolean }) {
+  return <div className="auth-methods auth-methods--beta">
+    <p className="auth-beta-note">Password recovery is paused for this invite-only beta. Sign in with the invited Google account linked to your RASMALAI profile.</p>
+    <GoogleSignInButton enabled={googleEnabled} />
+  </div>;
+}
+
+export function PasswordResetUnavailable() {
+  return <p className="auth-beta-note" role="status">Password changes are paused during this invite-only beta. Continue using your invited Google account.</p>;
 }
 
 export function ForgotPasswordForm() {

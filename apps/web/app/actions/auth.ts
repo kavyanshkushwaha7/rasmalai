@@ -1,6 +1,7 @@
 "use server";
 
 import { isDatabaseConfigured, withAuthenticatedUser } from "@rasmalai/database";
+import { isGoogleOAuthAvailable, isPasswordAuthAvailable, readAuthBetaConfig } from "@rasmalai/database/auth-beta-policy";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient, getAuthenticatedUserContext, isSupabaseConfigured } from "@/lib/supabase/server";
@@ -18,6 +19,7 @@ function firstIssue(error: z.ZodError) {
 }
 
 export async function signUpEmail(_state: ActionState, formData: FormData): Promise<ActionState> {
+  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Email and password signup is unavailable for this invite-only beta. Continue with an invited Google account." };
   if (!isSupabaseConfigured()) return { error: configuredMessage };
   const email = emailSchema.safeParse(formData.get("email"));
   const password = passwordSchema.safeParse(formData.get("password"));
@@ -38,6 +40,7 @@ export async function signUpEmail(_state: ActionState, formData: FormData): Prom
 }
 
 export async function signInEmail(_state: ActionState, formData: FormData): Promise<ActionState> {
+  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Email and password login is unavailable for this invite-only beta. Continue with your invited Google account." };
   if (!isSupabaseConfigured()) return { error: configuredMessage };
   const email = emailSchema.safeParse(formData.get("email"));
   const password = z.string().min(1, "Enter your password.").safeParse(formData.get("password"));
@@ -62,7 +65,30 @@ export async function signInEmail(_state: ActionState, formData: FormData): Prom
   redirect("/profile/setup?database=missing");
 }
 
+export async function startGoogleSignIn(_state: ActionState, _formData: FormData): Promise<ActionState> {
+  const config = readAuthBetaConfig();
+  if (!isGoogleOAuthAvailable(config)) {
+    return { error: "Google sign-in is not configured yet. Ask the beta administrator for access." };
+  }
+  if (!isSupabaseConfigured()) return { error: configuredMessage };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${siteUrl()}/auth/callback?next=/profile/setup`,
+      scopes: "openid email profile",
+      queryParams: { prompt: "select_account" },
+    },
+  });
+  if (error || !data.url) {
+    return { error: "Google sign-in could not start. Check that Google is enabled in the Supabase Auth provider settings." };
+  }
+  redirect(data.url);
+}
+
 export async function requestPasswordReset(_state: ActionState, formData: FormData): Promise<ActionState> {
+  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Password recovery is unavailable for this invite-only beta. Sign in with your invited Google account." };
   if (!isSupabaseConfigured()) return { error: configuredMessage };
   const email = emailSchema.safeParse(formData.get("email"));
   if (!email.success) return { error: firstIssue(email.error) };
@@ -76,6 +102,7 @@ export async function requestPasswordReset(_state: ActionState, formData: FormDa
 }
 
 export async function updatePassword(_state: ActionState, formData: FormData): Promise<ActionState> {
+  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Password changes are unavailable for this invite-only beta. Sign in with Google." };
   if (!isSupabaseConfigured()) return { error: configuredMessage };
   const password = passwordSchema.safeParse(formData.get("password"));
   const confirm = z.string().safeParse(formData.get("confirmPassword"));

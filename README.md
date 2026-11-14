@@ -38,7 +38,13 @@ Phase 6 release checks and the evidence-based Passed/Failed/Blocked checklist ar
 
 A one-service Render Free/₹0 beta definition is prepared in [`render.yaml`](render.yaml), with the runtime proxy and configuration steps in [`docs/render-free-beta.md`](docs/render-free-beta.md). It has not been deployed. Render Free is a sleeping beta service with strict memory/CPU, bandwidth and uptime limits, not reliable public production hosting. Keep `rasmalai-test` separate; production Supabase, sender email, database backup/restore and live acceptance remain blockers. Do not connect the private repository or create a Render resource until the owner explicitly approves.
 
+## Google OAuth for the controlled beta
+
+Google sign-in UI and secure PKCE callback support are prepared. The owner reports Google is configured in Mumbai Supabase; that provider setup has not been independently verified or live-tested. `GOOGLE_OAUTH_ENABLED` remains false in the Render template and local examples. The beta uses `AUTH_BETA_MODE=invite-only-google` and a private server-side `BETA_ALLOWED_EMAILS` list; web requests and realtime sockets enforce the same verified-email/Google-identity allowlist. Email/password code remains available in the default local mode but is blocked server-side in invite-only beta mode. See [docs/google-oauth-free-beta.md](docs/google-oauth-free-beta.md) for setup verification, callback configuration, identity-linking caveat, and manual test plan.
+
 ## Create and configure Supabase
+
+For the separate owner-reported Mumbai production project, follow the read-only verification and approval-gated setup in [docs/supabase-production-mumbai.md](docs/supabase-production-mumbai.md). The production project has not yet been independently verified or configured; keep the existing local environment files pointed at `rasmalai-test`.
 
 1. Create a project in the [Supabase Dashboard](https://supabase.com/dashboard). Save the database password in a password manager.
 2. In **Project Settings → API**, copy the Project URL, `sb_publishable_...` key, and a `sb_secret_...` key. The publishable key is safe for browser use. Store the secret key only in the web server’s secret environment; never put it in a `NEXT_PUBLIC_` variable or frontend bundle.
@@ -48,16 +54,18 @@ A one-service Render Free/₹0 beta definition is prepared in [`render.yaml`](re
    - `http://localhost:3000/auth/callback?next=/profile/setup`
    - `http://localhost:3000/auth/callback?next=/reset-password`
    Add the deployed site’s exact callback URLs before production use.
-5. In **Authentication → Sign In / Providers**, enable Email. Configure SMTP and set confirmation/reset templates to use the allowed `/auth/callback?next=/profile/setup` and `/auth/callback?next=/reset-password` routes. Phone login remains disabled and marked Coming soon in the app. Enabling it later requires an external SMS provider and may incur message and sender-number costs.
+5. For local/test email-password flows, use **Authentication → Sign In / Providers → Email**, keep confirmation enabled, and configure SMTP plus the allowed `/auth/callback?next=/profile/setup` and `/auth/callback?next=/reset-password` redirects. For the Google-only controlled production beta, follow [docs/google-oauth-free-beta.md](docs/google-oauth-free-beta.md) instead; that guide explains how to block direct email/password signup in the production Auth provider after reviewing existing users. Phone login remains disabled and marked Coming soon. Enabling it later requires an external SMS provider and may incur message and sender-number costs.
 
 ### Create the restricted runtime role
 
-As the Supabase project database administrator, create the runtime role once. Use a unique generated password. The role is a member of `authenticated` because the application switches into that role inside each user-scoped transaction; it must not own tables or have `BYPASSRLS`.
+As the Supabase project database administrator, create the runtime role once. The role is a member of `authenticated` because the application switches into that role inside each user-scoped transaction; it must not own tables or have `BYPASSRLS`. To keep the role password out of SQL Editor history, create the role without a password, then set it interactively from an admin `psql` session with `\password prisma`.
 
 ```sql
-create user "prisma" with password 'REPLACE_WITH_A_STRONG_RANDOM_PASSWORD';
+create role "prisma" login nosuperuser nocreatedb nocreaterole noreplication nobypassrls;
 grant authenticated to "prisma";
 ```
+
+The `\password prisma` command is a `psql` meta-command, not SQL; it prompts without echoing the new password. Do not put the password literal in dashboard SQL, shell history, a connection URL in a command line, or chat. Role creation and password setup are writes: verify the target project and obtain owner approval before running them.
 
 This SQL is for a separate Supabase project only. The configured test project already has the restricted runtime role. Authenticated users receive column-limited public profile and participant-scoped social/game reads; social and game mutations go through owner-checked functions. The `prisma` role can execute only the narrow room/game RPCs and does not receive direct access to the private room-summary helper.
 
@@ -70,6 +78,9 @@ Keep application and migration credentials in separate environment stores. Copy 
 | `NEXT_PUBLIC_SUPABASE_URL` | Web | Supabase Auth and Storage endpoint |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Web | Public Supabase key; not a secret |
 | `NEXT_PUBLIC_SITE_URL` | Web | Origin used to form Auth callback links |
+| `AUTH_BETA_MODE` | Web and realtime servers | `email-password` locally; set `invite-only-google` for the controlled beta |
+| `GOOGLE_OAUTH_ENABLED` | Web and realtime servers | Server-side Google OAuth switch; remains `false` until beta allowlist, Render origin, and live acceptance are reviewed |
+| `BETA_ALLOWED_EMAILS` | Web and realtime servers | Comma-separated, server-only invited email allowlist; empty denies all beta access |
 | `SUPABASE_SECRET_KEY` | Web server only | Server-side Storage operations after user verification and image validation |
 | `DATABASE_URL` | Web and realtime servers only | Restricted Prisma runtime role connection with `sslmode=verify-full` and `sslrootcert=certs/prod-ca-2021.crt` |
 | `DIRECT_URL` | `packages/database/.env` only | Project-admin connection used by Prisma migrations |

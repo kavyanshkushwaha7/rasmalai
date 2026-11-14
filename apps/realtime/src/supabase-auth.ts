@@ -1,3 +1,5 @@
+import { isAuthUserAllowed, readAuthBetaConfig, type VerifiedAuthUser } from "@rasmalai/database/auth-beta-policy";
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type VerifiedRealtimeUser = { id: string };
@@ -16,6 +18,7 @@ export async function verifySupabaseAccessToken(accessToken: string, fetcher: ty
     if (!response.ok) return null;
     const user: unknown = await response.json();
     if (!user || typeof user !== "object" || !("id" in user) || typeof user.id !== "string" || !UUID_PATTERN.test(user.id)) return null;
+    if (!isAuthUserAllowed(user as VerifiedAuthUser, readAuthBetaConfig())) return null;
     return { id: user.id };
   } catch {
     return null;
