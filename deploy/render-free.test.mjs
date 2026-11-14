@@ -16,13 +16,14 @@ test("Render Blueprint self-references the assigned HTTPS origin for build and r
   assert.match(blueprint, /    plan: free\n/);
   assert.match(blueprint, /    buildCommand: npm ci --include=dev && RASMALAI_AUDIT_BUILD=1 npm run build\n/);
   assert.match(blueprint, /      - key: NODE_ENV\n        value: production\n/);
-  assert.match(blueprint, /      - key: GOOGLE_OAUTH_ENABLED\n        value: "false"/);
+  assert.match(blueprint, /      - key: AUTH_BETA_MODE\n        value: public-google/);
+  assert.match(blueprint, /      - key: GOOGLE_OAUTH_ENABLED\n        value: "true"/);
+  assert.match(blueprint, /      - key: BETA_ALLOWED_EMAILS\n        value: ""/);
   assert.match(blueprint, /      - fromGroup: rasmalai-prod-ca\n/);
   assert.doesNotMatch(blueprint, /^envVarGroups:/m);
   assert.match(blueprint, /      - key: SPECTATOR_MODE_ENABLED\n        value: "false"/);
   const privatePrompts = [...blueprint.matchAll(/^      - key: ([A-Z0-9_]+)\n        sync: false$/gm)].map((match) => match[1]).sort();
   assert.deepEqual(privatePrompts, [
-    "BETA_ALLOWED_EMAILS",
     "DATABASE_URL",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_SUPABASE_URL",
@@ -191,9 +192,11 @@ test("Render runtime accepts only same-origin HTTPS, disabled spectators, verifi
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ REALTIME_ALLOWED_ORIGIN: "https://other.invalid" }), () => true), /must exactly match/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ NEXT_PUBLIC_SITE_URL: "http://rasmalai-render-test.invalid" }), () => true), /exact HTTPS origin/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ SPECTATOR_MODE_ENABLED: "true" }), () => true), /must remain false/);
-  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ AUTH_BETA_MODE: "email-password" }), () => true), /invite-only-google/);
+  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ AUTH_BETA_MODE: "email-password" }), () => true), /email-password/);
+  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ AUTH_BETA_MODE: "public-google", GOOGLE_OAUTH_ENABLED: "false" }), () => true), /must be true/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ GOOGLE_OAUTH_ENABLED: "true" }), () => true), /BETA_ALLOWED_EMAILS/);
   assert.doesNotThrow(() => validateRenderEnvironment(validRenderEnvironment({ GOOGLE_OAUTH_ENABLED: "true", BETA_ALLOWED_EMAILS: "player@example.com" }), () => true));
+  assert.doesNotThrow(() => validateRenderEnvironment(validRenderEnvironment({ AUTH_BETA_MODE: "public-google", GOOGLE_OAUTH_ENABLED: "true", BETA_ALLOWED_EMAILS: "" }), () => true));
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ NEXT_PUBLIC_REALTIME_URL: "https://other.invalid" }), () => true), /must be empty/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DIRECT_URL: "postgresql://admin:secret@db.invalid/postgres" }), () => true), /migration-only/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DATABASE_URL: "postgresql://prisma.projectref:test@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=verify-full&sslrootcert=%2Fetc%2Fsecrets%2Fwrong-ca.crt" }), () => true), /linked Mumbai CA file/);

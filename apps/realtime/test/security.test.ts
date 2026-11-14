@@ -53,6 +53,38 @@ test("realtime invite-only beta accepts only a verified, allowlisted Google iden
   assert.equal(await verifySupabaseAccessToken("valid-token-long-enough"), null);
 });
 
+test("realtime public Google mode accepts verified Google identities without an allowlist", async () => {
+  process.env.SUPABASE_URL = "https://project.example.test";
+  process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test_key";
+  process.env.AUTH_BETA_MODE = "public-google";
+  process.env.GOOGLE_OAUTH_ENABLED = "true";
+  process.env.BETA_ALLOWED_EMAILS = "";
+  globalThis.fetch = (async () => Response.json({
+    id: userId,
+    email: "new-player@example.net",
+    email_confirmed_at: "2026-11-01T00:00:00.000Z",
+    app_metadata: { provider: "google", providers: ["google"] },
+  })) as typeof fetch;
+  assert.deepEqual(await verifySupabaseAccessToken("valid-public-google-token"), { id: userId });
+
+  globalThis.fetch = (async () => Response.json({
+    id: userId,
+    email: "unverified@example.net",
+    email_confirmed_at: null,
+    confirmed_at: null,
+    app_metadata: { provider: "google", providers: ["google"] },
+  })) as typeof fetch;
+  assert.equal(await verifySupabaseAccessToken("unverified-google-token"), null);
+
+  globalThis.fetch = (async () => Response.json({
+    id: userId,
+    email: "email-only@example.net",
+    email_confirmed_at: "2026-11-01T00:00:00.000Z",
+    app_metadata: { provider: "email", providers: ["email"] },
+  })) as typeof fetch;
+  assert.equal(await verifySupabaseAccessToken("email-only-token-123456"), null);
+});
+
 test("realtime validates a token with Supabase Auth and rejects invalid sessions", async () => {
   process.env.SUPABASE_URL = "https://project.example.test";
   process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test_key";

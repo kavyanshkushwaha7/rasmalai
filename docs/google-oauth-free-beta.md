@@ -1,70 +1,70 @@
-# Google OAuth for the RASMALAI ₹0 beta
+# Google-only authentication modes
 
-**Status: code prepared; Google setup is owner-reported in Mumbai Supabase and is not independently verified. Render and local test OAuth remain disabled.** This guide does not change Supabase settings or deploy the app. It uses Google only for basic sign-in identity and adds no paid service or billing requirement.
+## Application behavior
 
-## What the beta gate does
+RASMALAI offers two server-enforced Google modes:
 
-The eventual public beta is configured as `AUTH_BETA_MODE=invite-only-google`. The server permits a session only when Supabase returns a verified email, a Google identity, and an email present in the server-only `BETA_ALLOWED_EMAILS` list. An empty list or disabled Google flag denies app access. The web app and Socket.IO service read the same settings; Socket.IO rechecks the verified Supabase user before accepting a connection. Email/password signup, login, reset requests, and password changes remain in the code for future use but are unavailable in this beta mode. The existing profile setup page handles first-time Google users.
+| `AUTH_BETA_MODE` | Who can authenticate | Email/password |
+| --- | --- | --- |
+| `invite-only-google` | A verified Google identity whose email is in the private `BETA_ALLOWED_EMAILS` list | Disabled |
+| `public-google` | Any Supabase-verified Google identity with a verified email. `BETA_ALLOWED_EMAILS` is ignored. | Disabled |
 
-The allowlist is a controlled beta invitation list, not a self-service invite-code system. Add or remove addresses only in the private deployment environment. Do not put this list in a `NEXT_PUBLIC_` variable or client code. The login and signup routes are rendered dynamically so the server's private beta settings are read at request time rather than baked into static HTML.
+`GOOGLE_OAUTH_ENABLED=true` is required in either mode. Unknown modes fail closed. The web auth context and the realtime Socket.IO verifier share this policy; authenticated profile, social, game-room, chat, and voice access continues to require the same verified Supabase session and existing resource authorization. Public authentication does not make private rooms, messages, profiles, or player actions public. Spectator mode remains disabled. Email/password Server Actions remain guarded even if called directly.
 
-## Google Cloud setup
+Google first-time users complete the existing `/profile/setup` flow. Existing profiles and game/social records are keyed by Supabase user ID and are not rewritten by changing modes; there is no migration. Existing Google accounts keep their current IDs. Supabase may automatically link a Google identity to an existing Supabase user with the same verified email. Review existing Auth users and test the expected account-linking behavior before opening access; the application does not run its own merge or change database records. See [Supabase identity linking](https://supabase.com/docs/guides/auth/auth-identity-linking).
 
-Do this after the Render service has an assigned hostname. Do not create a billing account, enable billing, or add a card for this OAuth identity-only configuration.
+The Render Blueprint is configured with `public-google`, Google enabled, and an empty `BETA_ALLOWED_EMAILS`. This is a checked-in desired configuration only: no Render service setting has been changed, no deploy has run, and no Supabase setting has been changed by this task. It still requires a deliberate Blueprint sync/deploy after review.
 
-1. Open [Google Cloud Console](https://console.cloud.google.com/) and select or create a project for RASMALAI. OAuth sign-in does not require enabling a paid API.
-2. Open **Google Auth Platform → Branding**. Enter the app name `RASMALAI`, a support email you control, and a developer contact email. Save the branding.
-3. Open **Google Auth Platform → Audience**. Choose **External**. Keep the app in **Testing** for the controlled beta and add each invited Google account under **Test users**. Google currently limits Testing apps to up to 100 listed testers; each user must also be in RASMALAI's server-side allowlist. Google's token behavior can depend on consent-screen status and requested scopes; this implementation asks only for basic identity scopes, and this must still be checked in Google's current console and policy documentation before beta use.
-4. Open **Google Auth Platform → Data Access**. Keep only the basic OpenID identity scopes: `openid`, `email`, and `profile` (Google may display email/profile as `.../auth/userinfo.email` and `.../auth/userinfo.profile`). Do not add Drive, Calendar, contacts, or other scopes.
-5. Open **Google Auth Platform → Clients → Create client → Web application**.
-6. Add the final Render website origin under **Authorized JavaScript origins**, once known: `https://<assigned-render-hostname>`. Add `http://localhost:3000` only if you will also test the local app, then remove it from the production client if it is no longer needed.
-7. Under **Authorized redirect URIs**, add the callback displayed by the Mumbai Supabase project's Google provider settings. For the current project reference, it is expected to be `https://uglnkdxmbqltfherquqo.supabase.co/auth/v1/callback`; copy and verify the exact URI from the dashboard rather than relying on this example.
-8. Create the client. Copy its Client ID and Client Secret privately. Never paste them into chat, source code, `.env.example`, or Git.
+## Google Cloud steps for public sign-in
 
-Google's callback is Supabase's `/auth/v1/callback`. It is **not** the app's callback. The app callback receives the PKCE code after Supabase finishes the provider exchange.
+Use the existing Google Cloud project and Web OAuth client. Do not create a new credential or turn on billing for this change.
 
-**No-domain limitation:** Google requires production OAuth apps to use domains the app owner owns or is authorized to use, and brand verification requires verifying the relevant domain. A Render-assigned `onrender.com` hostname is not a domain you own; Google may accept it for a small Testing beta, but do not assume it will pass production brand verification. Keep the consent screen in Testing and the app restricted to named testers until the Google Console accepts the configuration. Testing mode currently caps the list at 100 accounts. An unrestricted public Google sign-in launch may require a verified domain, which would no longer meet the owner's no-domain/₹0 constraint unless a free, verifiable domain solution is found.
+1. Open **Google Cloud Console → Google Auth Platform → Audience**. Set **User type/Audience** to **External**. `Internal` only permits users in the owning Workspace organization.
+2. Under **Data Access**, retain only the sign-in scopes `openid`, `email`, and `profile` (the equivalent identity scopes are `userinfo.email` and `userinfo.profile`). The application requests exactly `openid email profile`; do not add Drive, Gmail, or other API access.
+3. Under **Clients**, open the existing Web client and ensure its authorized redirect URI is exactly `https://uglnkdxmbqltfherquqo.supabase.co/auth/v1/callback`. This is Google's return URI to Supabase. It is different from the application's `/auth/callback`.
+4. In **Branding**, use the real RASMALAI name and a support contact you control. Do not claim a domain you do not own. Google requires a public homepage and privacy policy for an External production app; production branding verification requires these pages on a domain verified as yours. Google says third-party hosted subdomains that you cannot verify ownership of are not suitable. The current shared `rasmalai-free-beta.onrender.com` host is not a domain the owner controls, and this repo has no published privacy-policy route, so a fully brand-verified public release is blocked until the owner has an owned/verified domain and a policy page.
+5. In **Audience**, select **Publish app / In production** only after reviewing Google’s prompts and requirements. Publishing means any Google Account can authorize the OAuth client; it does not bypass RASMALAI's own verified-Google checks. Google documents that an External app in Published/Unverified status can allow any Google user for basic identity-only scopes, but the app name/logo are not displayed until brand verification. Workspace administrators can still block an unverified app. If Google Console will not allow production publishing without required app-domain details, stop; do not enter a fabricated domain or enable billing.
 
-## Verify Mumbai Supabase setup — only after reviewing the account-linking note below
+For this app’s basic identity-only scopes, Google currently documents an exception in Testing: the test-user list, testing warning and 7-day authorization expiration do not apply. Production status is still needed for an explicitly public audience and should be reviewed in Console. The exact UI may depend on the project's current verification state. Google references: [Audience and publishing status](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview), [manage app audience](https://support.google.com/cloud/answer/15549945?hl=en-MC), [brand verification requirements](https://support.google.com/cloud/answer/13464321?hl=en-KI), and [homepage requirements](https://support.google.com/cloud/answer/13807376?hl=en-AU).
 
-1. Confirm the project reference in **Project Settings → General** is `uglnkdxmbqltfherquqo` and the project is `rasmalai-production-mumbai` in Mumbai. Do not use `rasmalai-test` or Seoul.
-2. The owner reports Google is enabled in **Authentication → Sign In / Providers → Google**. Verify it is the expected provider and callback in the Mumbai project; do not modify settings as part of this code preparation.
-3. In **Authentication → URL Configuration**, once Render supplies the actual hostname:
-   - Set **Site URL** to `https://<assigned-render-hostname>`.
-   - Add `https://<assigned-render-hostname>/auth/callback` to allowed redirect URLs.
-   - The application asks Supabase to return to `https://<assigned-render-hostname>/auth/callback?next=/profile/setup`; if the dashboard's redirect matcher requires a query-specific entry, also add that exact callback with `?next=/profile/setup`.
-   - Do not set a guessed hostname. Do not change the Site URL before the real service hostname exists.
-4. If the beta is intended to have Google as its only active provider, review existing Auth users, then turn off the **Email** provider in this production project as a separate dashboard change. This prevents direct calls to Supabase Auth from creating new email/password users; the app's hidden UI alone cannot prevent someone from calling Supabase's public Auth endpoint directly. This toggle was not changed here. Keep the email verification/recovery configuration intact; never disable verification to bypass delivery limits. Email/password application code remains in the repository for future re-enablement.
-5. Review **Authentication → Users** before enabling Google. Do not delete users or modify database rows.
+Basic `openid email profile` sign-in scopes are not the sensitive/restricted Google API scopes that require sensitive-scope review. Brand/app identity requirements still apply to a production-branded app. Google may show a generic/unverified app identity until branding is accepted.
 
-## Supabase's verified-email account linking
+## Supabase settings to review manually
 
-Supabase Auth automatically links identities that have the same verified email address. This is Supabase's verified identity-linking behavior; the app does not call a custom account-merge API or `linkIdentity()`. Supabase documents that it avoids linking against an unverified existing email. However, the automatic link does not add a separate “I consent to link these accounts” screen. Review the current production Auth user list and Supabase's [identity linking behavior](https://supabase.com/docs/guides/auth/auth-identity-linking) before enabling Google. If explicit, user-initiated linking is a hard requirement, keep `GOOGLE_OAUTH_ENABLED=false` until that policy is resolved; app code cannot stop Supabase's provider-side automatic linking after Google is enabled.
+Do not change the Mumbai production project until the owner intentionally enables the public beta.
 
-## Private Render environment values
+1. Confirm the project is `rasmalai-production-mumbai`, reference `uglnkdxmbqltfherquqo`.
+2. In **Authentication → Sign In / Providers → Google**, confirm the provider uses the existing Google Web client. Supabase's Google callback configured in Google Cloud is the URI above.
+3. In **Authentication → URL Configuration**, set the Site URL to the actual Render HTTPS origin and allow at least `https://rasmalai-free-beta.onrender.com/auth/callback`. Also allow the actual callback URLs the application uses, including `/auth/callback?next=/profile/setup` if required by Supabase's redirect matcher. Never use a guessed hostname. Supabase's redirect list is separate from Google's authorized redirect URI; see [Supabase redirect URL configuration](https://supabase.com/docs/guides/auth/redirect-urls).
+4. Review **Authentication → Users** and the identity-linking note above. Do not delete accounts or profiles.
+5. Email/password is disabled inside RASMALAI in both Google modes. Supabase may separately expose its public Auth endpoints; for a Google-only project, review and disable the Supabase Email provider after assessing existing email-only users. That is a separate production dashboard action and is not changed by this code task.
 
-Set these in the Render service's private **Environment** panel, not in Git:
+## Runtime configuration
+
+The one-service Render Blueprint now declares these values (values are not credentials):
 
 ```dotenv
-AUTH_BETA_MODE=invite-only-google
-GOOGLE_OAUTH_ENABLED=false
-BETA_ALLOWED_EMAILS=invited.one@example.com,invited.two@example.com
-NEXT_PUBLIC_SITE_URL=https://<assigned-render-hostname>
-REALTIME_ALLOWED_ORIGIN=https://<assigned-render-hostname>
-NEXT_PUBLIC_REALTIME_URL=
+AUTH_BETA_MODE=public-google
+GOOGLE_OAUTH_ENABLED=true
+BETA_ALLOWED_EMAILS=
+SPECTATOR_MODE_ENABLED=false
 ```
 
-The email list must contain only invited addresses. Although Google setup is owner-reported in Mumbai Supabase, keep `GOOGLE_OAUTH_ENABLED=false` in Render until the actual Render origin, allowlist, identity-linking decision, and live acceptance plan are reviewed. The application fails closed if the list is empty. These auth policy variables are server-only and are shared by the web and realtime processes in the single-service Render configuration.
+For a private allowlisted beta, change the mode to `invite-only-google`, set a private comma-separated allowlist in Render, and keep Google enabled. Never put email addresses or provider secrets in a `NEXT_PUBLIC_` variable. Supabase, not the app browser, holds the Google client secret.
 
-Do not add Google Client ID or Client Secret to the web app: Supabase owns the provider credentials. Do not add either under `NEXT_PUBLIC_`. The app only requests `openid email profile` from Google.
+## Abuse protection and privacy
 
-## Expected free-tier limitations and verification
+Supabase Auth applies shared IP-based rate limits to sign-in/token endpoints. The application also retains its PostgreSQL-shared limits for authenticated social and realtime actions. No new paid service or database migration is required for public mode. Google sign-in is not an anonymity or anti-abuse guarantee: use Supabase's existing Auth rate-limit controls, monitor usage, and keep existing server authorization/RLS. Supabase documents the current Auth limits at [Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits).
 
-- Google OAuth identity login has no application service fee. Keep Google Cloud billing disabled; do not enable paid Google APIs.
-- While the OAuth consent screen is in Testing, the Google test-user list restricts access. Add every beta tester both there and to `BETA_ALLOWED_EMAILS`.
-- The app's access list is an additional server-side check; an OAuth account omitted from it may complete the provider redirect but is signed out at the PKCE callback and cannot use protected pages or realtime sockets.
-- Until the Supabase Email provider is manually disabled after user review, direct Supabase Auth API requests may still create email/password Auth users even though RASMALAI's signup/login/reset UI and Server Actions block those flows. Such users fail the app's beta authorization gate unless they have the allowlisted verified Google identity.
-- After configuration, test a listed account through `/login`, finish Google consent, reach `/profile/setup`, save a profile, open `/games/online`, then test a non-listed account is rejected. Verify public website origin, callback, Socket.IO, and logout. No live OAuth flow has been tested by this preparation; the owner-reported Supabase provider configuration was not accessed.
-- Google identity-provider sign-in does not itself provide a transactional email service. If future email/password signup or recovery is re-enabled, configure a verified sender/SMTP provider separately; do not disable verification to work around email delivery.
+RASMALAI requests only basic Google identity, uses the verified Supabase user ID for authorization, and does not need Google API access after sign-in. Its privacy policy and homepage disclosures must accurately explain how account email/profile information is used before public launch.
 
-Official references: [Supabase Google sign-in setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google), [Supabase redirect URL configuration](https://supabase.com/docs/guides/auth/redirect-urls), [Supabase identity linking](https://supabase.com/docs/guides/auth/auth-identity-linking), and [Google OAuth scopes and token behavior](https://developers.google.com/identity/protocols/oauth2).
+## Manual acceptance checks before public use
+
+- With `public-google` and no allowlist, a new verified Google user can complete PKCE, reach profile setup, save a profile, and authenticate to Socket.IO.
+- An unverified identity, non-Google Supabase account, invalid/revoked session, or missing Google provider remains rejected.
+- Direct email/password Server Actions remain unavailable.
+- In `invite-only-google`, an allowlisted verified Google identity works and an unlisted identity fails with the same generic public error.
+- Existing users, profile IDs, friends, messages and game history remain attached to the same Supabase user IDs.
+- Private rooms, messages and game actions continue to enforce existing membership authorization; spectator mode remains disabled.
+
+These are required manual checks; this code change has not authenticated against or modified production Supabase/Render.

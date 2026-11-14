@@ -45,6 +45,30 @@ test("invite allowlist is case-insensitive and accepts only a verified Google id
   assert.equal(isAuthUserAllowed({ ...googleUser, app_metadata: { provider: "email" }, identities: [{ provider: "google" }] }, config), true);
 });
 
+test("public Google mode admits any verified Google identity without an email allowlist", () => {
+  const config = readAuthBetaConfig({
+    AUTH_BETA_MODE: "public-google",
+    GOOGLE_OAUTH_ENABLED: "true",
+    BETA_ALLOWED_EMAILS: "",
+  });
+  assert.equal(config.mode, "public-google");
+  assert.equal(config.allowedEmails.size, 0);
+  assert.equal(isGoogleOAuthAvailable(config), true);
+  assert.equal(isPasswordAuthAvailable(config), false);
+  assert.equal(isAuthUserAllowed(googleUser, config), true);
+  assert.equal(isAuthUserAllowed({ ...googleUser, email: "anyone.else@example.net" }, config), true);
+  assert.equal(isAuthUserAllowed({ ...googleUser, email_confirmed_at: null, confirmed_at: null }, config), false);
+  assert.equal(isAuthUserAllowed({ ...googleUser, app_metadata: { provider: "email", providers: ["email"] } }, config), false);
+  assert.equal(isAuthUserAllowed({ ...googleUser, email: undefined }, config), false);
+});
+
+test("public Google mode fails closed when Google is disabled", () => {
+  const config = readAuthBetaConfig({ AUTH_BETA_MODE: "public-google", GOOGLE_OAUTH_ENABLED: "false" });
+  assert.equal(isGoogleOAuthAvailable(config), false);
+  assert.equal(isAuthUserAllowed(googleUser, config), false);
+  assert.equal(isPasswordAuthAvailable(config), false);
+});
+
 test("invite policy reports distinct non-sensitive rejection reasons", () => {
   const config = readAuthBetaConfig({
     AUTH_BETA_MODE: "invite-only-google",

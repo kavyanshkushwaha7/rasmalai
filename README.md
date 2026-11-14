@@ -38,9 +38,9 @@ Phase 6 release checks and the evidence-based Passed/Failed/Blocked checklist ar
 
 A one-service Render Free/₹0 beta definition is prepared in [`render.yaml`](render.yaml), with the runtime proxy and configuration steps in [`docs/render-free-beta.md`](docs/render-free-beta.md). It has not been deployed. Render Free is a sleeping beta service with strict memory/CPU, bandwidth and uptime limits, not reliable public production hosting. Keep `rasmalai-test` separate; production Supabase, sender email, database backup/restore and live acceptance remain blockers. Do not connect the private repository or create a Render resource until the owner explicitly approves.
 
-## Google OAuth for the controlled beta
+## Google OAuth access modes
 
-Google sign-in UI and secure PKCE callback support are prepared. The owner reports Google is configured in Mumbai Supabase; that provider setup has not been independently verified or live-tested. `GOOGLE_OAUTH_ENABLED` remains false in the Render template and local examples. The beta uses `AUTH_BETA_MODE=invite-only-google` and a private server-side `BETA_ALLOWED_EMAILS` list; web requests and realtime sockets enforce the same verified-email/Google-identity allowlist. Email/password code remains available in the default local mode but is blocked server-side in invite-only beta mode. See [docs/google-oauth-free-beta.md](docs/google-oauth-free-beta.md) for setup verification, callback configuration, identity-linking caveat, and manual test plan.
+Google sign-in uses the existing Supabase PKCE callback and requests only `openid email profile`. The shared server policy supports `invite-only-google` (verified Google identity plus `BETA_ALLOWED_EMAILS`) and `public-google` (any verified Google identity, with the allowlist ignored). Web requests and realtime Socket.IO verify the same Supabase user and policy. Both modes disable app email/password signup, login, recovery, and password changes. The Render Blueprint is prepared for `public-google`; this code change does not alter Render/Supabase settings or deploy. See [docs/google-oauth-free-beta.md](docs/google-oauth-free-beta.md) for Google publishing requirements, the current no-custom-domain limitation, identity-linking caveat, and exact manual setup steps.
 
 ## Create and configure Supabase
 
@@ -54,7 +54,7 @@ For the separate owner-reported Mumbai production project, follow the read-only 
    - `http://localhost:3000/auth/callback?next=/profile/setup`
    - `http://localhost:3000/auth/callback?next=/reset-password`
    Add the deployed site’s exact callback URLs before production use.
-5. For local/test email-password flows, use **Authentication → Sign In / Providers → Email**, keep confirmation enabled, and configure SMTP plus the allowed `/auth/callback?next=/profile/setup` and `/auth/callback?next=/reset-password` redirects. For the Google-only controlled production beta, follow [docs/google-oauth-free-beta.md](docs/google-oauth-free-beta.md) instead; that guide explains how to block direct email/password signup in the production Auth provider after reviewing existing users. Phone login remains disabled and marked Coming soon. Enabling it later requires an external SMS provider and may incur message and sender-number costs.
+5. For local/test email-password flows, use **Authentication → Sign In / Providers → Email**, keep confirmation enabled, and configure SMTP plus the allowed `/auth/callback?next=/profile/setup` and `/auth/callback?next=/reset-password` redirects. For the Google-only production mode, follow [docs/google-oauth-free-beta.md](docs/google-oauth-free-beta.md); it explains the public and invite-only application policies and the separate Supabase Email-provider review. The app blocks email/password use in Google modes, but direct Supabase Auth endpoints also need the Email provider disabled if the owner wants to prevent password accounts from being created there. Phone login remains disabled and marked Coming soon. Enabling it later requires an external SMS provider and may incur message and sender-number costs.
 
 ### Create the restricted runtime role
 
@@ -78,9 +78,9 @@ Keep application and migration credentials in separate environment stores. Copy 
 | `NEXT_PUBLIC_SUPABASE_URL` | Web | Supabase Auth and Storage endpoint |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Web | Public Supabase key; not a secret |
 | `NEXT_PUBLIC_SITE_URL` | Web | Origin used to form Auth callback links |
-| `AUTH_BETA_MODE` | Web and realtime servers | `email-password` locally; set `invite-only-google` for the controlled beta |
-| `GOOGLE_OAUTH_ENABLED` | Web and realtime servers | Server-side Google OAuth switch; remains `false` until beta allowlist, Render origin, and live acceptance are reviewed |
-| `BETA_ALLOWED_EMAILS` | Web and realtime servers | Comma-separated, server-only invited email allowlist; empty denies all beta access |
+| `AUTH_BETA_MODE` | Web and realtime servers | `email-password` locally; `invite-only-google` for allowlisted Google beta; `public-google` for verified Google-only public access |
+| `GOOGLE_OAUTH_ENABLED` | Web and realtime servers | Server-side Google OAuth switch; must be `true` for Google modes |
+| `BETA_ALLOWED_EMAILS` | Web and realtime servers | Comma-separated server-only allowlist for `invite-only-google`; ignored by `public-google` |
 | `SUPABASE_SECRET_KEY` | Web server only | Server-side Storage operations after user verification and image validation |
 | `DATABASE_URL` | Web and realtime servers only | Restricted Prisma runtime role connection with `sslmode=verify-full` and `sslrootcert=certs/prod-ca-2021.crt` |
 | `DIRECT_URL` | `packages/database/.env` only | Project-admin connection used by Prisma migrations |

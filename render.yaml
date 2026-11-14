@@ -40,11 +40,11 @@ services:
       - key: SPECTATOR_MODE_ENABLED
         value: "false"
       - key: AUTH_BETA_MODE
-        value: invite-only-google
+        value: public-google
       - key: GOOGLE_OAUTH_ENABLED
-        value: "false"
+        value: "true"
       - key: BETA_ALLOWED_EMAILS
-        sync: false
+        value: ""
       - key: RENDER_WEB_INTERNAL_PORT
         value: "13000"
       - key: RENDER_REALTIME_INTERNAL_PORT

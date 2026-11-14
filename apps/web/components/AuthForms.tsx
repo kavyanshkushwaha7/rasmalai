@@ -46,19 +46,21 @@ function GoogleSignInButton({ enabled }: { enabled: boolean }) {
         Continue with Google
       </button>
     </form>
-    {!enabled && <p className="auth-config-note">Google sign-in setup is pending. This button will activate after the beta administrator configures it.</p>}
+    {!enabled && <p className="auth-config-note">Google sign-in is temporarily unavailable. Please try again later.</p>}
     <Feedback state={state} />
   </div>;
 }
 
 export function AuthMethods({ mode, betaMode, googleEnabled }: {
   mode: "signup" | "login";
-  betaMode: "email-password" | "invite-only-google" | "disabled";
+  betaMode: "email-password" | "invite-only-google" | "public-google" | "disabled";
   googleEnabled: boolean;
 }) {
-  if (betaMode === "invite-only-google") return <div className="auth-methods auth-methods--beta">
+  if (betaMode === "invite-only-google" || betaMode === "public-google") return <div className="auth-methods auth-methods--beta">
     <GoogleSignInButton enabled={googleEnabled} />
-    <p className="auth-beta-note">RASMALAI is in a limited beta. Use an invited, allowlisted Google account. New players can set up a profile after signing in.</p>
+    <p className="auth-beta-note">{betaMode === "invite-only-google"
+      ? "RASMALAI is in a limited beta. Use an invited, allowlisted Google account. New players can set up a profile after signing in."
+      : "Sign in securely with a verified Google account. New players can set up a profile after signing in."}</p>
   </div>;
   if (betaMode === "disabled") return <p className="auth-config-note" role="status">Sign-in is temporarily unavailable while access is configured.</p>;
 
@@ -70,15 +72,22 @@ export function AuthMethods({ mode, betaMode, googleEnabled }: {
   </div>;
 }
 
-export function BetaAuthNotice({ googleEnabled }: { googleEnabled: boolean }) {
+export function BetaAuthNotice({ googleEnabled, betaMode }: { googleEnabled: boolean; betaMode: "invite-only-google" | "public-google" }) {
   return <div className="auth-methods auth-methods--beta">
-    <p className="auth-beta-note">Password recovery is paused for this invite-only beta. Sign in with the invited Google account linked to your RASMALAI profile.</p>
+    <p className="auth-beta-note">{betaMode === "invite-only-google"
+      ? "Password recovery is paused for this invite-only beta. Sign in with the invited Google account linked to your RASMALAI profile."
+      : "Password recovery is unavailable because RASMALAI uses Google sign-in. Continue with the Google account linked to your profile."}</p>
     <GoogleSignInButton enabled={googleEnabled} />
   </div>;
 }
 
-export function PasswordResetUnavailable() {
-  return <p className="auth-beta-note" role="status">Password changes are paused during this invite-only beta. Continue using your invited Google account.</p>;
+export function PasswordResetUnavailable({ betaMode }: { betaMode: "email-password" | "invite-only-google" | "public-google" | "disabled" }) {
+  const message = betaMode === "invite-only-google"
+    ? "Password changes are paused during this invite-only beta. Continue using your invited Google account."
+    : betaMode === "public-google"
+      ? "Password changes are unavailable because RASMALAI uses Google sign-in."
+      : "Password changes are currently unavailable.";
+  return <p className="auth-beta-note" role="status">{message}</p>;
 }
 
 export function ForgotPasswordForm() {

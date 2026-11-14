@@ -9,7 +9,12 @@ export const dynamic = "force-dynamic";
 
 export default function SignUpPage() {
   const beta = readAuthBetaConfig();
-  return <AuthShell eyebrow="MAKE YOURSELF AT HOME" title="Join the playground." description={beta.mode === "invite-only-google" ? "Continue with your invited Google account to set up your player profile." : "Create your player profile and find your corner of Rasmalai."}>
+  const description = beta.mode === "invite-only-google"
+    ? "Continue with your invited Google account to set up your player profile."
+    : beta.mode === "public-google"
+      ? "Continue with a verified Google account to set up your player profile."
+      : "Create your player profile and find your corner of Rasmalai.";
+  return <AuthShell eyebrow="MAKE YOURSELF AT HOME" title="Join the playground." description={description}>
     <AuthMethods mode="signup" betaMode={beta.mode} googleEnabled={isGoogleOAuthAvailable(beta)} />
     {beta.mode !== "disabled" && <p className="auth-switch">{beta.mode === "invite-only-google" ? "Already invited?" : "Already play here?"} <Link href="/login">Log in</Link></p>}
   </AuthShell>;

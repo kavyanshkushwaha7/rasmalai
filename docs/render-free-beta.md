@@ -25,7 +25,7 @@ It pins Node.js `22.22.0` (matching the existing Node 22 production container), 
 
 The Blueprint also links the **existing** `rasmalai-prod-ca` Environment Group with `fromGroup`. This references that group; it does not define, create, or overwrite it. Render Environment Groups provide linked services access to their secret files as well as variables. Confirm the group contains the CA file named `rasmalai-supabase-ca.crt` before syncing the Blueprint. See [Render environment groups](https://render.com/docs/configure-environment-variables#environment-groups).
 
-The Blueprint review should prompt for these five project-specific values:
+The Blueprint review should prompt for these four private project-specific values:
 
 | Render key | Configure privately |
 | --- | --- |
@@ -33,7 +33,7 @@ The Blueprint review should prompt for these five project-specific values:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Mumbai production project's publishable key |
 | `SUPABASE_SECRET_KEY` | Mumbai production secret key; server-only |
 | `DATABASE_URL` | Restricted `prisma` Transaction Pooler URL, password URL-encoded, with `sslmode=verify-full` and `sslrootcert=%2Fetc%2Fsecrets%2Frasmalai-supabase-ca.crt` |
-| `BETA_ALLOWED_EMAILS` | Comma-separated invited, verified email addresses. It can remain empty while Google sign-in is disabled if Render permits an empty value. |
+| `BETA_ALLOWED_EMAILS` | Not prompted for public mode; the Blueprint sets it to an empty string. Only set it manually if deliberately switching the app back to `invite-only-google`. |
 
 Beginner setup:
 
@@ -41,10 +41,10 @@ Beginner setup:
 2. Enter `SUPABASE_SECRET_KEY` directly into Render's protected value field. Never paste it into chat, source files, or a terminal command.
 3. For `DATABASE_URL`, use the Mumbai project's Supabase **Connect → Transaction pooler** details and the restricted `prisma` runtime role. Confirm the username begins `prisma.`, the host ends in `.pooler.supabase.com`, and the port is `6543`. Use this role's password (URL-encode reserved characters). Add `sslmode=verify-full` and `sslrootcert=%2Fetc%2Fsecrets%2Frasmalai-supabase-ca.crt` to the query. Do not use the `postgres` admin account or its `DIRECT_URL`.
 4. In the existing Render `rasmalai-prod-ca` Environment Group, confirm the secret file is named exactly `rasmalai-supabase-ca.crt` and contains the Mumbai production CA. The linked runtime path must be `/etc/secrets/rasmalai-supabase-ca.crt`. The local copy at `certs/rasmalai-production-mumbai-ca.crt` parses as a PEM certificate and is ignored by Git. Do not add the CA file to the Blueprint or upload a test-project CA.
-5. Put only the invited, verified addresses in `BETA_ALLOWED_EMAILS`. Leave `GOOGLE_OAUTH_ENABLED=false` as fixed in the Blueprint until you explicitly choose to activate Google after URL and allowlist review.
-6. Before enabling sign-in, use the generated origin to configure the Mumbai Supabase Auth Site URL and allowed callback URL (`<generated-origin>/auth/callback`). This requires a separate owner action; this guide does not change Supabase settings.
+5. The Blueprint keeps public Google mode (`AUTH_BETA_MODE=public-google`, `GOOGLE_OAUTH_ENABLED=true`) and an empty `BETA_ALLOWED_EMAILS`; do not add individual addresses. To use invite-only access instead, explicitly switch the mode to `invite-only-google` and set the server-only allowlist.
+6. Before sign-in can work, use the generated origin to review the Mumbai Supabase Auth Site URL and allowed callback URL (`<generated-origin>/auth/callback`). This requires a separate owner action; this guide does not change Supabase settings. Google Cloud app publishing/branding requirements and the no-owned-domain limitation are in [google-oauth-free-beta.md](google-oauth-free-beta.md).
 
-The Blueprint sets `AUTH_BETA_MODE=invite-only-google`, `GOOGLE_OAUTH_ENABLED=false`, `SPECTATOR_MODE_ENABLED=false`, and leaves `NEXT_PUBLIC_REALTIME_URL` empty for same-origin HTTPS/WSS. It self-references the origin variables, so they should no longer be among the manual prompt fields. If the review still prompts for seven, refresh it after the updated Blueprint is pushed and synced.
+The Blueprint sets `AUTH_BETA_MODE=public-google`, `GOOGLE_OAUTH_ENABLED=true`, `BETA_ALLOWED_EMAILS=""`, `SPECTATOR_MODE_ENABLED=false`, and leaves `NEXT_PUBLIC_REALTIME_URL` empty for same-origin HTTPS/WSS. Both Google mode and Google enabled state persist when the Blueprint is synced. It self-references the origin variables, so they should not be manual prompt fields. The public-mode Blueprint has four secret prompts; if the review shows the old invite-list prompt or different mode, refresh it after the reviewed YAML is pushed and synced.
 
 **First-start certificate check:** the runtime intentionally refuses to start if the linked CA file is absent, has a different path, or TLS is not `verify-full`. The `fromGroup` reference supplies the existing group's file to the service; verify its filename and contents before any approved Blueprint sync. Do not bypass this check by using `sslmode=require`, removing the certificate, or substituting an admin URL.
 

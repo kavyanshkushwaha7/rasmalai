@@ -19,7 +19,7 @@ function firstIssue(error: z.ZodError) {
 }
 
 export async function signUpEmail(_state: ActionState, formData: FormData): Promise<ActionState> {
-  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Email and password signup is unavailable for this invite-only beta. Continue with an invited Google account." };
+  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Email and password signup is unavailable. Continue with Google sign-in." };
   if (!isSupabaseConfigured()) return { error: configuredMessage };
   const email = emailSchema.safeParse(formData.get("email"));
   const password = passwordSchema.safeParse(formData.get("password"));
@@ -40,7 +40,7 @@ export async function signUpEmail(_state: ActionState, formData: FormData): Prom
 }
 
 export async function signInEmail(_state: ActionState, formData: FormData): Promise<ActionState> {
-  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Email and password login is unavailable for this invite-only beta. Continue with your invited Google account." };
+  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Email and password login is unavailable. Continue with Google sign-in." };
   if (!isSupabaseConfigured()) return { error: configuredMessage };
   const email = emailSchema.safeParse(formData.get("email"));
   const password = z.string().min(1, "Enter your password.").safeParse(formData.get("password"));
@@ -68,7 +68,7 @@ export async function signInEmail(_state: ActionState, formData: FormData): Prom
 export async function startGoogleSignIn(_state: ActionState, _formData: FormData): Promise<ActionState> {
   const config = readAuthBetaConfig();
   if (!isGoogleOAuthAvailable(config)) {
-    return { error: "Google sign-in is not configured yet. Ask the beta administrator for access." };
+    return { error: "Google sign-in is not available right now. Please try again later." };
   }
   if (!isSupabaseConfigured()) return { error: configuredMessage };
 
@@ -88,7 +88,7 @@ export async function startGoogleSignIn(_state: ActionState, _formData: FormData
 }
 
 export async function requestPasswordReset(_state: ActionState, formData: FormData): Promise<ActionState> {
-  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Password recovery is unavailable for this invite-only beta. Sign in with your invited Google account." };
+  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Password recovery is unavailable. Sign in with Google." };
   if (!isSupabaseConfigured()) return { error: configuredMessage };
   const email = emailSchema.safeParse(formData.get("email"));
   if (!email.success) return { error: firstIssue(email.error) };
@@ -102,7 +102,7 @@ export async function requestPasswordReset(_state: ActionState, formData: FormDa
 }
 
 export async function updatePassword(_state: ActionState, formData: FormData): Promise<ActionState> {
-  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Password changes are unavailable for this invite-only beta. Sign in with Google." };
+  if (!isPasswordAuthAvailable(readAuthBetaConfig())) return { error: "Password changes are unavailable. Sign in with Google." };
   if (!isSupabaseConfigured()) return { error: configuredMessage };
   const password = passwordSchema.safeParse(formData.get("password"));
   const confirm = z.string().safeParse(formData.get("confirmPassword"));

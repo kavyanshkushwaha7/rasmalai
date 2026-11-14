@@ -159,15 +159,19 @@ export function validateRenderEnvironment(environment = process.env, caFileExist
   if ((environment.SPECTATOR_MODE_ENABLED ?? "false").toLowerCase() !== "false") {
     throw new Error("SPECTATOR_MODE_ENABLED must remain false for this launch configuration.");
   }
-  if (requiredFrom(environment, "AUTH_BETA_MODE") !== "invite-only-google") {
-    throw new Error("AUTH_BETA_MODE must remain invite-only-google for the controlled beta.");
+  const authMode = requiredFrom(environment, "AUTH_BETA_MODE");
+  if (authMode !== "invite-only-google" && authMode !== "public-google") {
+    throw new Error("AUTH_BETA_MODE must be invite-only-google or public-google; email-password and disabled modes are not allowed on this service.");
   }
   const googleOAuthEnabled = requiredFrom(environment, "GOOGLE_OAUTH_ENABLED").toLowerCase();
   if (googleOAuthEnabled !== "true" && googleOAuthEnabled !== "false") {
     throw new Error("GOOGLE_OAUTH_ENABLED must be true or false.");
   }
-  if (googleOAuthEnabled === "true" && !requiredFrom(environment, "BETA_ALLOWED_EMAILS")) {
+  if (authMode === "invite-only-google" && googleOAuthEnabled === "true" && !requiredFrom(environment, "BETA_ALLOWED_EMAILS")) {
     throw new Error("BETA_ALLOWED_EMAILS must contain at least one invited email before Google sign-in is enabled.");
+  }
+  if (authMode === "public-google" && googleOAuthEnabled !== "true") {
+    throw new Error("GOOGLE_OAUTH_ENABLED must be true when AUTH_BETA_MODE is public-google.");
   }
 
   const supabaseUrl = new URL(requiredFrom(environment, "NEXT_PUBLIC_SUPABASE_URL"));

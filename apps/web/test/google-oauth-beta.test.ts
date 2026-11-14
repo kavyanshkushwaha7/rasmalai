@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { isAuthUserAllowed, readAuthBetaConfig } from "@rasmalai/database/auth-beta-policy";
+import { isAuthUserAllowed, isPasswordAuthAvailable, readAuthBetaConfig } from "@rasmalai/database/auth-beta-policy";
 import { getSafeAuthCallbackPath } from "../lib/supabase/auth-callback-redirect.js";
 import {
   getAuthCallbackRejectionReason,
@@ -58,6 +58,8 @@ test("callback diagnostics contain only a correlation ID and a fixed reason code
 test("beta pages hide password recovery/signup while the server actions retain server-side guards", async () => {
   const authUi = await readFile(new URL("components/AuthForms.tsx", webRoot), "utf8");
   assert.match(authUi, /betaMode === "invite-only-google"/);
+  assert.match(authUi, /betaMode === "public-google"/);
+  assert.match(authUi, /betaMode === "invite-only-google" \|\| betaMode === "public-google"/);
   assert.match(authUi, /Continue with Google/);
   assert.match(authUi, /<GoogleSignInButton enabled=\{googleEnabled\} \/>/, "the Google option remains visible when disabled by the server flag");
   for (const page of ["login", "sign-up", "forgot-password", "reset-password"]) {
@@ -69,6 +71,17 @@ test("beta pages hide password recovery/signup while the server actions retain s
   assert.match(actions, /signInEmail[\s\S]*isPasswordAuthAvailable/);
   assert.match(actions, /requestPasswordReset[\s\S]*isPasswordAuthAvailable/);
   assert.match(actions, /updatePassword[\s\S]*isPasswordAuthAvailable/);
+  assert.match(actions, /provider: "google"/);
+  assert.match(actions, /scopes: "openid email profile"/);
+  assert.match(actions, /redirectTo: `\$\{siteUrl\(\)\}\/auth\/callback\?next=\/profile\/setup`/);
+  const webAuth = await readFile(new URL("lib/supabase/server.ts", webRoot), "utf8");
+  assert.match(webAuth, /isAuthUserAllowed\(identity\.user, readAuthBetaConfig\(\)\)/);
+  const realtimeAuth = await readFile(new URL("../realtime/src/supabase-auth.ts", webRoot), "utf8");
+  assert.match(realtimeAuth, /isAuthUserAllowed\(user as VerifiedAuthUser, readAuthBetaConfig\(\)\)/);
   const config = readAuthBetaConfig({ AUTH_BETA_MODE: "invite-only-google", GOOGLE_OAUTH_ENABLED: "true", BETA_ALLOWED_EMAILS: "player@example.com" });
   assert.equal(isAuthUserAllowed({ email: "player@example.com", confirmed_at: "now", identities: [{ provider: "google" }] }, config), true);
+  const publicConfig = readAuthBetaConfig({ AUTH_BETA_MODE: "public-google", GOOGLE_OAUTH_ENABLED: "true", BETA_ALLOWED_EMAILS: "" });
+  assert.equal(isAuthUserAllowed({ email: "new-player@example.net", confirmed_at: "now", identities: [{ provider: "google" }] }, publicConfig), true);
+  assert.equal(isAuthUserAllowed({ email: "new-player@example.net", confirmed_at: "now", identities: [{ provider: "google" }] }, config), false);
+  assert.equal(isPasswordAuthAvailable(publicConfig), false);
 });

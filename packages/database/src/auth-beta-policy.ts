@@ -1,4 +1,4 @@
-export type AuthBetaMode = "email-password" | "invite-only-google" | "disabled";
+export type AuthBetaMode = "email-password" | "invite-only-google" | "public-google" | "disabled";
 
 export type AuthBetaConfig = {
   mode: AuthBetaMode;
@@ -26,7 +26,7 @@ export function readAuthBetaConfig(environment: Record<string, string | undefine
   const rawMode = environment.AUTH_BETA_MODE?.trim();
   const mode: AuthBetaMode = rawMode === undefined || rawMode === "" || rawMode === "email-password"
     ? "email-password"
-    : rawMode === "invite-only-google" || rawMode === "disabled"
+    : rawMode === "invite-only-google" || rawMode === "public-google" || rawMode === "disabled"
       ? rawMode
       : "disabled";
   const allowedEmails = new Set((environment.BETA_ALLOWED_EMAILS ?? "")
@@ -64,12 +64,14 @@ export function getAuthUserRejectionReason(
   config: AuthBetaConfig,
 ): AuthUserRejectionReason | null {
   if (config.mode === "email-password") return null;
-  if (config.mode !== "invite-only-google") return "beta_policy_disabled";
+  if (config.mode === "disabled") return "beta_policy_disabled";
   if (!config.googleOAuthEnabled) return "google_oauth_disabled";
   if (typeof user.email !== "string") return "email_missing";
   if (!user.email_confirmed_at && !user.confirmed_at) return "email_not_verified";
   if (!hasVerifiedGoogleIdentity(user)) return "google_provider_identity_missing";
-  if (!config.allowedEmails.has(user.email.trim().toLowerCase())) return "email_not_in_beta_allowlist";
+  if (config.mode === "invite-only-google" && !config.allowedEmails.has(user.email.trim().toLowerCase())) {
+    return "email_not_in_beta_allowlist";
+  }
   return null;
 }
 
