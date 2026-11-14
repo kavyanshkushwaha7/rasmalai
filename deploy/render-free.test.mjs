@@ -1,9 +1,21 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { createServer, request } from "node:http";
 import { once } from "node:events";
 import test from "node:test";
 import { createRenderProxyServer, validateRenderEnvironment } from "./render-free.mjs";
+
+test("Render Blueprint self-references the assigned HTTPS origin for build and runtime", () => {
+  const blueprint = readFileSync(new URL("../render.yaml", import.meta.url), "utf8");
+  for (const key of ["NEXT_PUBLIC_SITE_URL", "REALTIME_ALLOWED_ORIGIN"]) {
+    const reference = new RegExp(`- key: ${key}\\s+fromService:\\s+name: rasmalai-free-beta\\s+type: web\\s+envVarKey: RENDER_EXTERNAL_URL`);
+    assert.match(blueprint, reference);
+  }
+  assert.equal([...blueprint.matchAll(/^  - type: web$/gm)].length, 1);
+  assert.match(blueprint, /    plan: free\n/);
+  assert.match(blueprint, /      - key: GOOGLE_OAUTH_ENABLED\n        value: "false"/);
+});
 
 async function listen(server) {
   server.listen(0, "127.0.0.1");

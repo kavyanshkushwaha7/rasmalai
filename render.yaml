@@ -17,7 +17,10 @@ services:
       - key: RASMALAI_AUDIT_BUILD
         value: "1"
       - key: NEXT_PUBLIC_SITE_URL
-        sync: false
+        fromService:
+          name: rasmalai-free-beta
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -27,7 +30,10 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: REALTIME_ALLOWED_ORIGIN
-        sync: false
+        fromService:
+          name: rasmalai-free-beta
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: NEXT_PUBLIC_REALTIME_URL
         value: ""
       - key: SPECTATOR_MODE_ENABLED
