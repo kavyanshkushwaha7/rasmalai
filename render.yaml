@@ -10,6 +10,7 @@ services:
     startCommand: RASMALAI_AUDIT_BUILD=1 node deploy/render-free.mjs
     healthCheckPath: /health
     envVars:
+      - fromGroup: rasmalai-prod-ca
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION

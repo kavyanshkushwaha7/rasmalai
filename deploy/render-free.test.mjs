@@ -15,6 +15,17 @@ test("Render Blueprint self-references the assigned HTTPS origin for build and r
   assert.equal([...blueprint.matchAll(/^  - type: web$/gm)].length, 1);
   assert.match(blueprint, /    plan: free\n/);
   assert.match(blueprint, /      - key: GOOGLE_OAUTH_ENABLED\n        value: "false"/);
+  assert.match(blueprint, /      - fromGroup: rasmalai-prod-ca\n/);
+  assert.doesNotMatch(blueprint, /^envVarGroups:/m);
+  assert.match(blueprint, /      - key: SPECTATOR_MODE_ENABLED\n        value: "false"/);
+  const privatePrompts = [...blueprint.matchAll(/^      - key: ([A-Z0-9_]+)\n        sync: false$/gm)].map((match) => match[1]).sort();
+  assert.deepEqual(privatePrompts, [
+    "BETA_ALLOWED_EMAILS",
+    "DATABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "SUPABASE_SECRET_KEY",
+  ]);
 });
 
 async function listen(server) {
@@ -168,7 +179,7 @@ function validRenderEnvironment(overrides = {}) {
     AUTH_BETA_MODE: "invite-only-google",
     GOOGLE_OAUTH_ENABLED: "false",
     BETA_ALLOWED_EMAILS: "",
-    DATABASE_URL: "postgresql://prisma.projectref:test@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=verify-full&sslrootcert=%2Fetc%2Fsecrets%2Fca.crt",
+    DATABASE_URL: "postgresql://prisma.projectref:test@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=verify-full&sslrootcert=%2Fetc%2Fsecrets%2Frasmalai-supabase-ca.crt",
     ...overrides,
   };
 }
@@ -183,7 +194,8 @@ test("Render runtime accepts only same-origin HTTPS, disabled spectators, verifi
   assert.doesNotThrow(() => validateRenderEnvironment(validRenderEnvironment({ GOOGLE_OAUTH_ENABLED: "true", BETA_ALLOWED_EMAILS: "player@example.com" }), () => true));
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ NEXT_PUBLIC_REALTIME_URL: "https://other.invalid" }), () => true), /must be empty/);
   assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DIRECT_URL: "postgresql://admin:secret@db.invalid/postgres" }), () => true), /migration-only/);
-  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DATABASE_URL: "postgresql://postgres:secret@db.project.supabase.co:5432/postgres?sslmode=verify-full&sslrootcert=%2Fetc%2Fsecrets%2Fca.crt" }), () => true), /restricted prisma Transaction Pooler/);
-  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DATABASE_URL: "postgresql://prisma.projectref:secret@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require&sslrootcert=%2Fetc%2Fsecrets%2Fca.crt" }), () => true), /sslmode=verify-full/);
-  assert.throws(() => validateRenderEnvironment(validRenderEnvironment(), () => false), /existing absolute sslrootcert file/);
+  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DATABASE_URL: "postgresql://prisma.projectref:test@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=verify-full&sslrootcert=%2Fetc%2Fsecrets%2Fwrong-ca.crt" }), () => true), /linked Mumbai CA file/);
+  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DATABASE_URL: "postgresql://postgres:secret@db.project.supabase.co:5432/postgres?sslmode=verify-full&sslrootcert=%2Fetc%2Fsecrets%2Frasmalai-supabase-ca.crt" }), () => true), /restricted prisma Transaction Pooler/);
+  assert.throws(() => validateRenderEnvironment(validRenderEnvironment({ DATABASE_URL: "postgresql://prisma.projectref:secret@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require&sslrootcert=%2Fetc%2Fsecrets%2Frasmalai-supabase-ca.crt" }), () => true), /sslmode=verify-full/);
+  assert.throws(() => validateRenderEnvironment(validRenderEnvironment(), () => false), /linked Mumbai CA file/);
 });

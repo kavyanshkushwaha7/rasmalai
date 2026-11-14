@@ -175,11 +175,12 @@ export function validateRenderEnvironment(environment = process.env, caFileExist
 
   const databaseUrl = new URL(requiredFrom(environment, "DATABASE_URL"));
   const caPath = databaseUrl.searchParams.get("sslrootcert");
+  const expectedCaPath = "/etc/secrets/rasmalai-supabase-ca.crt";
   let databaseUser = "";
   try { databaseUser = decodeURIComponent(databaseUrl.username); }
   catch { throw new Error("DATABASE_URL must contain a valid restricted runtime username."); }
-  if (databaseUrl.searchParams.get("sslmode") !== "verify-full" || !caPath || !isAbsolute(caPath) || !caFileExists(caPath)) {
-    throw new Error("DATABASE_URL must use sslmode=verify-full and an existing absolute sslrootcert file.");
+  if (databaseUrl.searchParams.get("sslmode") !== "verify-full" || caPath !== expectedCaPath || !isAbsolute(caPath) || !caFileExists(caPath)) {
+    throw new Error("DATABASE_URL must use sslmode=verify-full and the linked Mumbai CA file at /etc/secrets/rasmalai-supabase-ca.crt.");
   }
   if (!databaseUser.startsWith("prisma.") || !databaseUrl.hostname.endsWith(".pooler.supabase.com") || databaseUrl.port !== "6543") {
     throw new Error("DATABASE_URL must use the restricted prisma Transaction Pooler account, never an admin/direct connection.");
